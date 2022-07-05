@@ -2,10 +2,13 @@ module constants_m
   use iso_fortran_env
   implicit none
 
-  integer, parameter :: SI = int32
-  integer, parameter :: DI = int64
-  integer, parameter :: SR = real32
-  integer, parameter :: DR = real64
+  integer <const> :: SI = int32
+  integer <const> :: DI = int64
+  integer <const> :: SR = real32
+  integer <const> :: DR = real64
+  real(DR) <const> :: PI = atan(1.0_DR)*4
+  real(DR) <const> :: TWOPI = PI*2
+  integer <const> :: NIL = -huge(1)
 
 contains
 
@@ -14,6 +17,9 @@ contains
     print *, 'DI = ', DI
     print *, 'SR = ', SR
     print *, 'DR = ', DR
+    print *, 'PI = ', PI
+    print *, 'TWOPI = ', TWOPI
+    print *, 'NIL = ', NIL
   end subroutine constants__print
 
 end module constants_m
