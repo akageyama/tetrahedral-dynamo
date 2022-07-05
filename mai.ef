@@ -1,0 +1,6 @@
+program main
+  use constants_m
+  implicit none
+
+  call constants__print
+end program main

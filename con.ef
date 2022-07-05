@@ -1,0 +1,19 @@
+module constants_m
+  use iso_fortran_env
+  implicit none
+
+  integer, parameter :: SI = int32
+  integer, parameter :: DI = int64
+  integer, parameter :: SR = real32
+  integer, parameter :: DR = real64
+
+contains
+
+  subroutine constants__print
+    print *, 'SI = ', SI
+    print *, 'DI = ', DI
+    print *, 'SR = ', SR
+    print *, 'DR = ', DR
+  end subroutine constants__print
+
+end module constants_m
