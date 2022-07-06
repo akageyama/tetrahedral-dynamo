@@ -3,14 +3,12 @@ program main
   use ut_m
   implicit none
 
-  real(DR) :: a = PI
-  char(len=10) :: str10
-
   call constants__print
-  print *, ut__real_to_str10(PI)
-  print *, ut__positive_real_to_str9(PI)
 
-  call ut__message_leader("PI", PI*3)
-  call ut__message_leader("SI", SI)
-
+  call mhd__initialize
+  do loop = 1, loop_max
+    call mhd__step
+    call mhd__vis
+  end do
+  call mhd__finalize
 end program main

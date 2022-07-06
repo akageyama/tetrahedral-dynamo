@@ -1,0 +1,23 @@
+module mhd_m
+  use constants_m
+  use grid_m
+  use vector_field_m
+  use ut_m
+  private
+  public :: mhd__finalize,  &
+            mhd__initialize,  &
+            mhd__step
+
+  type, public :: mhd__field_t
+    type(scalar_field_t) :: mass_density
+    type(scalar_field_t) :: pressure
+    type(vector_field_t) :: mass_flux
+    type(vector_field_t) :: mag_field
+  end type mhd__field_t
+
+contains
+
+  subroutine mhd__initialize
+    call grid__initialize
+  end subroutine mhd__initialize
+end module mhd_m

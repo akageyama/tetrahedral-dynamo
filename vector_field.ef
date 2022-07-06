@@ -1,0 +1,13 @@
+module vector_field_m
+  use constants_m
+  use ut_m
+  implicit none
+  private
+
+  type, public :: vector_field_t
+    type(scalar_field_t) :: x
+    type(scalar_field_t) :: y
+    type(scalar_field_t) :: z
+  end type vector_field_t
+
+end module vector_field_m
