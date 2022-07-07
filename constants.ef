@@ -12,13 +12,13 @@ module constants_m
 
   !<< Simulation constants >>!
 
-  real(DR) <const> :: core_tetra_edge_length = 1.0  ! (meter) 
-  real(DR) <const> :: core_cube_edge_length = 1.0 / sqrt(2.0_DR)
-  integer <const> :: core_cube_grid_num = 30
-!!  real(DR) <const> :: grid_size = core_cube_edge_length / (core_cube_grid_num-1)
-  real(DR) <const> :: mantle_core_ratio = 1.5
-  integer <const> :: mantle_cube_grid_num = core_cube_grid_num * mantle_core_ratio
-  real(DR) <const> :: 
+  integer <const> :: NN_CC = 100 ! num of grid for core cube
+  integer <const> :: NN_MC = 150 ! num of grid for mantle cube
+  real(DR) <const> :: LE_CT = 1.0_DR ! length of edge of tetra's core tetra
+  real(DR) <const> :: LE_CC = 1 / sqrt(2.0_DR) ! length of edge of core cube
+  real(DR) <const> :: DX = LE_CC / (NN_CC-1)
+  real(DR) <const> :: LE_MC = DX*(NN_MC-1)
+
 
  !!>
       z=0の平面上では
