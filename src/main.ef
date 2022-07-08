@@ -3,6 +3,8 @@ program main
   use ut_m
   implicit none
 
+  integer(DI) :: loop, loop_max = 10000
+
   call constants__print
 
   call mhd__initialize

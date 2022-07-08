@@ -31,7 +31,7 @@ objlist := $(addsuffix .o, $(filebase)) # => example.o
 EFPP = ../bin/efpp.py
 
 # FC = mpifort
-FC = 
+FC = gfortran
 FFLAGS :=
 # FFLAGS += -fopenmp
 # FFLAGS += -fcheck=all
@@ -104,7 +104,7 @@ FFLAGS :=
 
 # default target
 
-yyz_relax: $(objlist)
+tetra_dynamo: $(objlist)
 	$(FC) $(FFLAGS) -o yyz_relax $(objlist)
 
 
@@ -119,19 +119,19 @@ depend_list.mk: *.ef
 
 #
 # For the print-out list of the source code.
-#   Note: Utility libraries "mpiut.e03" and "ut.e03" are skipped
+#   Note: Utility libraries "mpiut.ef" and "ut.ef" are skipped
 #         Since they are too long
 #
 print_files := Makefile
 print_files += efpp_alias.list
 print_files += $(shell ls ../bin/*.sh)
 print_files += job/mkjob.sh src/sample.namelist
-print_files += $(shell ls *.e03  \
-			| sed '/turtle.e03/d' \
-			| sed '/turtle_epslib.e03/d' \
-			| sed '/kutimer.e03/d' \
-			| sed '/ut.e03/d' \
-			| sed '/mpiut.e03/d' )
+print_files += $(shell ls *.ef  \
+			| sed '/turtle.ef/d' \
+			| sed '/turtle_epslib.ef/d' \
+			| sed '/kutimer.ef/d' \
+			| sed '/ut.ef/d' \
+			| sed '/mpiut.ef/d' )
 
 #
 # list of the source code.

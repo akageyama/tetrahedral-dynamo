@@ -57,11 +57,12 @@ contains
     print *, '***************************'
     print *, ' sim params'
     print *, '***************************'
-    print *, 'core_tetra_edge_length = ', core_tetra_edge_length
-    print *, 'core_cube_edge_length = ', core_cube_edge_length
-    print *, 'core_cube_grid_num = ', core_cube_grid_num
-    print *, 'mantle_core_ratio = ', mantle_core_ratio
-    print *, 'mantle_cube_grid_num = ', mantle_cube_grid_num
+    print *, 'NN_CC = ', NN_CC
+    print *, 'NN_MC = ', NN_MC
+    print *, 'LE_CT = ', LE_CT
+    print *, 'LE_CC = ', LE_CC
+    print *, '   DX = ', DX
+    print *, 'LE_MC = ', LE_MC
   end subroutine constants__print  
 
 end module constants_m
