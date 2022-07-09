@@ -1,0 +1,57 @@
+module grid_m
+  use constants_m
+  use ut_m
+  implicit none
+  private
+
+  type, public :: grid_t
+    real(DR) :: d1 = 1 / (2*DX)
+    real(DR) :: d2 = 1 / (DX*DX)
+  end type grid_t
+
+  type, public, extends(grid_t) :: grid_ic_t
+    real(DR), dimension(NN_IC) :: pos
+  contains
+    procedure :: initialize => grid_ic_initialize
+  end type grid_ic_t
+
+  type, public, extends(grid_t) :: grid_oc_t
+    real(DR), dimension(NN_OC) :: pos
+  contains
+    procedure :: initialize => grid_oc_initialize
+  end type grid_oc_t
+
+contains
+
+  subroutine grid_ic_initialize(self)
+    class(grid_ic_t) <out> :: self
+    integer :: i
+
+    do i = 1, NN_IC
+      self.pos(i) = -EL_IC/2 + i*DX
+    end do
+
+    call ut__message_leader("grid_ic d1", self.d1)
+    call ut__message_leader("grid_ic d2", self.d2)
+    do i = 1, NN_IC
+      print *, 'grid_ic_pos(', i, ') = ', self.pos(i)
+    end do
+  end subroutine grid_ic_initialize
+
+  subroutine grid_oc_initialize(self)
+    class(grid_oc_t) <out> :: self
+    integer :: i
+
+    do i = 1, NN_OC
+      self.pos(i) = -EL_OC/2 + i*DX
+    end do
+
+    call ut__message_leader("grid_oc d1", self.d1)
+    call ut__message_leader("grid_oc d2", self.d2)
+
+    do i = 1, NN_OC
+      print *, 'grid_oc_pos(', i, ') = ', self.pos(i)
+    end do
+  end subroutine grid_oc_initialize
+
+end module grid_m

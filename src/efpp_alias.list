@@ -1,3 +1,4 @@
 # macros
      "__EFPPVER__" => "180831"
-     "type(scalar_field_t) :: " => "real(DR), dimension(NN,NN,NN) ::"
+     "type(scalar_field_ic_t) :: " => "real(DR), dimension(NN_IC,NN_IC,NN_IC) :: "
+     "type(scalar_field_oc_t) :: " => "real(DR), dimension(NN_OC,NN_OC,NN_OC) :: "

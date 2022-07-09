@@ -6,18 +6,19 @@ module constants_m
   integer <const> :: DI = int64
   integer <const> :: SR = real32
   integer <const> :: DR = real64
+  integer <const> :: NIL = -huge(1)
   real(DR) <const> :: PI = atan(1.0_DR)*4
   real(DR) <const> :: TWOPI = PI*2
-  integer <const> :: NIL = -huge(1)
 
   !<< Simulation constants >>!
-
-  integer <const> :: NN_CC = 100 ! num of grid for core cube
-  integer <const> :: NN_MC = 150 ! num of grid for mantle cube
-  real(DR) <const> :: LE_CT = 1.0_DR ! length of edge of tetra's core tetra
-  real(DR) <const> :: LE_CC = 1 / sqrt(2.0_DR) ! length of edge of core cube
-  real(DR) <const> :: DX = LE_CC / (NN_CC-1)
-  real(DR) <const> :: LE_MC = DX*(NN_MC-1)
+  integer <const> :: NN_IC = 100 ! num of grid for inner cube
+  integer <const> :: NN_OC = 150 ! num of grid for outer cube
+  real(DR) <const> :: EL_TETRA = 1.0_DR ! edge length the tetra
+  real(DR) <const> :: EL_IC = EL_TETRA / sqrt(2.0_DR) ! E. L. of the inner core
+  real(DR) <const> :: DX = EL_IC / (NN_IC-1)
+  real(DR) <const> :: DY = DX
+  real(DR) <const> :: DZ = DX
+  real(DR) <const> :: EL_OC = DX*(NN_OC-1)
 
 
  !!>
@@ -40,29 +41,5 @@ module constants_m
     z=N面では、(0,0,N), (1,1,N), ..., (N,N,N)
 
  !!<
-
-
-contains
-
-  subroutine constants__print
-    print *, '***************************'
-    print *, ' math params'
-    print *, '***************************'
-    print *, 'SI = ', SI
-    print *, 'DI = ', DI
-    print *, 'SR = ', SR
-    print *, 'DR = ', DR
-    print *, 'PI = ', PI
-    print *, 'TWOPI = ', TWOPI
-    print *, '***************************'
-    print *, ' sim params'
-    print *, '***************************'
-    print *, 'NN_CC = ', NN_CC
-    print *, 'NN_MC = ', NN_MC
-    print *, 'LE_CT = ', LE_CT
-    print *, 'LE_CC = ', LE_CC
-    print *, '   DX = ', DX
-    print *, 'LE_MC = ', LE_MC
-  end subroutine constants__print  
 
 end module constants_m

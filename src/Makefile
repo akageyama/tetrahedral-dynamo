@@ -101,20 +101,18 @@ FFLAGS :=
 # endif
 # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-
 # default target
 
 tetra_dynamo: $(objlist)
-	$(FC) $(FFLAGS) -o yyz_relax $(objlist)
+	$(FC) $(FFLAGS) -o tetra_dynamo $(objlist)
 
 
 -include depend_list.mk
 
 
+
 depend_list.mk: *.ef
 	../bin/gendep.sh > $@ 
-
-
 
 
 #
@@ -149,4 +147,4 @@ clean:
 	rm -rf list.ps list.pdf
 	rm -rf depend_list.mk
 	rm -rf *.o *.lst *.F90 *.mod *.L
-	rm -rf yyz_relax
+	rm -rf tetra_dynamo

@@ -1,0 +1,5 @@
+*.o
+*.F90
+*.mod
+depend_list.mk
+tetra_dynamo

@@ -1,16 +1,14 @@
 program main
   use constants_m
-  use ut_m
+  use mhd_m
   implicit none
 
   integer(DI) :: loop, loop_max = 10000
 
-  call constants__print
-
   call mhd__initialize
-  do loop = 1, loop_max
-    call mhd__step
-    call mhd__vis
-  end do
-  call mhd__finalize
+  ! do loop = 1, loop_max
+  !   call mhd__step
+  !   call mhd__vis
+  ! end do
+  ! call mhd__finalize
 end program main
