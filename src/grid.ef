@@ -24,7 +24,7 @@ module grid_m
     real(DR) :: d1 = 1 / (2*DX)
     real(DR) :: d2 = 1 / (DX*DX)
     real(DR), dimension(NCUBE) :: pos
-    char(len=7), dimension(NCUBE,NCUBE,NCUBE) :: role = "null"
+    char(len=8), dimension(NCUBE,NCUBE,NCUBE) :: role = "null"
   contains    
     procedure :: initialize
   end type grid_t
@@ -33,7 +33,7 @@ module grid_m
 
 contains
 
-  function nearly_equal(x,y) result(ans)
+  function nearly_equal( x, y ) result(ans)
     real(DR) <in> :: x, y
     logical :: ans
 
@@ -59,7 +59,7 @@ contains
     !   end do
     ! end do
 
-    associate(H => EL_CORE/2)
+    associate( H => EL_CORE/2 )
       do k = 1, NCUBE
         z = self.pos(k)
         do j = 1, NCUBE
@@ -67,79 +67,81 @@ contains
           do i = 1, NCUBE
             x = self.pos(i)
 
-            if ( nearly_equal(x, +H) .and.  &
-                 nearly_equal(y, -H) .and.  &
-                 nearly_equal(z, -H) ) then
-              self.role(i,j,k) = "vert"
-            else if ( nearly_equal(x, -H) .and.  &
-                      nearly_equal(y, +H) .and.  &
-                      nearly_equal(z, -H) ) then
-              self.role(i,j,k) = "vert"
-            else if ( nearly_equal(x, +H) .and.  &
-                      nearly_equal(y, +H) .and.  &
-                      nearly_equal(z, +H) ) then
-              self.role(i,j,k) = "vert"
-            else if ( nearly_equal(x, -H) .and.  &
-                      nearly_equal(y, -H) .and.  &
-                      nearly_equal(z, +H) ) then
-              self.role(i,j,k) = "vert"
-            else if ( nearly_equal(x, +H) .and.  &
-                      nearly_equal(y, +z) ) then
-              self.role(i,j,k) = "edge" 
-            else if ( nearly_equal(x, -H) .and.  &
-                      nearly_equal(y, -z) ) then
-              self.role(i,j,k) = "edge" 
-            else if ( nearly_equal(y, +H) .and.  &
-                      nearly_equal(z, +x) ) then
-              self.role(i,j,k) = "edge" 
-            else if ( nearly_equal(y, -H) .and.  &
-                      nearly_equal(z, -x) ) then
-              self.role(i,j,k) = "edge" 
-            else if ( nearly_equal(z, +H) .and.  &
-                      nearly_equal(x, +y) ) then
-              self.role(i,j,k) = "edge" 
-            else if ( nearly_equal(z, -H) .and.  &
-                      nearly_equal(x, -y) ) then
-              self.role(i,j,k) = "edge" 
-            else if ( nearly_equal(-x-y-z, H) .and.  &
-                      )
-            else if (-x-y-z < H  .and.  &
-                     +x+y-z < H  .and.  &
-                     -x+y+z < H  .and.  &
-                     +x-y+z < H) then
-              self.role(i,j,k) = "tetra"
-            else if (-x-y-z > H  .or.  &
-                     +x+y-z > H  .or.  &
-                     -x+y+z > H  .or.  &
-                     +x-y+z > H)  then
+            if ( -x-y-z > H  .or.  &
+                 +x+y-z > H  .or.  &
+                 -x+y+z > H  .or.  &
+                 +x-y+z > H )  then
               self.role(i,j,k) = "vacuum"
+            else if ( nearly_equal( x, +H ) .and.  &
+                      nearly_equal( y, -H ) .and.  &
+                      nearly_equal( z, -H ) ) then
+              self.role(i,j,k) = "vert"
+            else if ( nearly_equal( x, -H ) .and.  &
+                      nearly_equal( y, +H ) .and.  &
+                      nearly_equal( z, -H ) ) then
+              self.role(i,j,k) = "vert"
+            else if ( nearly_equal( x, +H ) .and.  &
+                      nearly_equal( y, +H ) .and.  &
+                      nearly_equal( z, +H ) ) then
+              self.role(i,j,k) = "vert"
+            else if ( nearly_equal( x, -H ) .and.  &
+                      nearly_equal( y, -H ) .and.  &
+                      nearly_equal( z, +H ) ) then
+              self.role(i,j,k) = "vert"
+            else if ( nearly_equal( x, +H ) .and.  &
+                      nearly_equal( y, +z ) ) then
+              self.role(i,j,k) = "edge" 
+            else if ( nearly_equal( x, -H ) .and.  &
+                      nearly_equal( y, -z ) ) then
+              self.role(i,j,k) = "edge" 
+            else if ( nearly_equal( y, +H ) .and.  &
+                      nearly_equal( z, +x ) ) then
+              self.role(i,j,k) = "edge" 
+            else if ( nearly_equal( y, -H ) .and.  &
+                      nearly_equal( z, -x ) ) then
+              self.role(i,j,k) = "edge" 
+            else if ( nearly_equal( z, +H ) .and.  &
+                      nearly_equal( x, +y ) ) then
+              self.role(i,j,k) = "edge" 
+            else if ( nearly_equal( z, -H ) .and.  &
+                      nearly_equal( x, -y ) ) then
+              self.role(i,j,k) = "edge" 
+            else if ( nearly_equal( -x-y-z, H ) .or.  &
+                      nearly_equal( +x+y-z, H ) .or.  &
+                      nearly_equal( -x+y+z, H ) .or.  &
+                      nearly_equal( +x-y+z, H ) ) then
+              self.role(i,j,k) = "surface"
+            else if ( -x-y-z < H  .and.  &
+                      +x+y-z < H  .and.  &
+                      -x+y+z < H  .and.  &
+                      +x-y+z < H ) then
+              self.role(i,j,k) = "tetra"
             end if
           end do
         end do
       end do
     end associate
 
-    do k = 1, NCUBE
-      do j = 1, NCUBE
-        do i = 1, NCUBE
-          if ( self.role(i,j,k) /= "vacuum" ) then
-            if ( self.role(i,j,k) /= "tetra" ) then
-              print *, i, j, k, self.role(i,j,k)
-            end if
-          end if
-        end do
-      end do
-    end do
+    ! do k = 1, NCUBE
+    !   do j = 1, NCUBE
+    !     do i = 1, NCUBE
+    !       if ( self.role(i,j,k) /= "vacuum" ) then
+    !         if ( self.role(i,j,k) /= "tetra" ) then
+    !           print *, i, j, k, self.role(i,j,k)
+    !         end if
+    !       end if
+    !     end do
+    !   end do
+    ! end do
 
     call ut__assert( all(self.role /= "null"), &
                      "Grid point role error." )
 
-    call ut__message_leader("grid d1", self.d1)
-    call ut__message_leader("grid d2", self.d2)
-    do i = 1, NCUBE
-      print *, 'grid_pos(', i, ') = ', self.pos(i)
-    end do
-
+    call ut__message_leader( "grid d1", self.d1 )
+    call ut__message_leader( "grid d2", self.d2 )
+    ! do i = 1, NCUBE
+    !   print *, 'grid_pos(', i, ') = ', self.pos(i)
+    ! end do
 
   end subroutine initialize
 
