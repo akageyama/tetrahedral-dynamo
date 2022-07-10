@@ -10,59 +10,38 @@ module mhd_m
             mhd__step
 
   type, public :: mhd__field_t
-    type(scalar_field_ic_t) :: mass_density
-    type(scalar_field_ic_t) :: pressure
-    type(vector_field_ic_t) :: mass_flux
-    type(vector_field_oc_t) :: mag_field
+    type(scalar_field_t) :: mass_density
+    type(scalar_field_t) :: pressure
+    type(vector_field_t) :: mass_flux
+    type(vector_field_t) :: mag_field
   end type mhd__field_t
-
-  type(grid_ic_t) :: grid_ic
-  type(grid_oc_t) :: grid_oc
 
 contains
 
-  subroutine print_constants
-    call ut__deco_message('-', "Fortran constants")
-    call ut__message_leader("SI", SI)
-    call ut__message_leader("DI", DI)
-    call ut__message_leader("SR", SR)
-    call ut__message_leader("DR", DR)
-    call ut__message_leader("NIL", NIL)
+  subroutine check_constants
 
-    call ut__deco_message('-', "Mathematal constants")
-    call ut__message_leader("PI", PI)
-    call ut__message_leader("TWOPI", TWOPI)
+    call ut__assert( EL_CUBE >= EL_CORE_CUBE,  &
+                    "Outer cube is smaller than inner cube? That's impossible!")
+    call ut__assert(DY==DX, "We assume isotropic grid (dx=dy=dz).")
+    call ut__assert(DZ==DY, "We assume isotropic grid (dx=dy=dz).")
 
-    call ut__deco_message('-', "Simulation constants")
-    call ut__message_leader("NN_IC", NN_IC)
-    call ut__message_leader("NN_OC", NN_OC)
-    call ut__message_leader("EL_TETRA", EL_TETRA)
-    call ut__message_leader("EL_IC", EL_IC)
-    call ut__message_leader("EL_OC", EL_OC)
-    call ut__message_leader("DX", DX)
-    call ut__message_leader("DY", DY)
-    call ut__message_leader("DZ", DZ)
-  end subroutine print_constants
+    call ut__message_leader("Fortran const. SI", SI)
+    call ut__message_leader("Fortran const. DI", DI)
+    call ut__message_leader("Fortran const. SR", SR)
+    call ut__message_leader("Fortran const. DR", DR)
+    call ut__message_leader("Fortran const. NIL", NIL)
 
-  subroutine print_date_and_time
-    char(len=8) :: date ! 20220709
-    char(len=10) :: time ! HHMMSS.sss
-    char(len=4) :: year
-    char(len=2) :: month, day, hour, minute, second
-    char(len=10) :: year_month_day ! 2022.07.09
-    char(len=8) :: hour_minute_second ! 16:56:00
-    call date_and_time( date, time )
-    year = date(1:4)
-    month = date(5:6)
-    day = date(7:8)
-    hour = time(1:2)
-    minute = time(3:4)
-    second=time(5:6)
-    year_month_day = year // '.' // month // '.' // day
-    hour_minute_second = hour // ':' // minute // ':' // second
+    call ut__message_leader("Math const. PI", PI)
+    call ut__message_leader("Math const. TWOPI", TWOPI)
 
-    print *, 'Date: ', year_month_day, '/', hour_minute_second
-  end subroutine print_date_and_time
+    call ut__message_leader("Sim const. NC", NC)
+    call ut__message_leader("Sim const. EL_TETRA", EL_TETRA)
+    call ut__message_leader("Sim const. EL_CORE_CUBE", EL_CORE_CUBE)
+    call ut__message_leader("Sim const. EL_CUBE", EL_CUBE)
+    call ut__message_leader("Sim const. DX", DX)
+    call ut__message_leader("Sim const. DY", DY)
+    call ut__message_leader("Sim const. DZ", DZ)
+  end subroutine check_constants
 
 
   subroutine mhd__finalize
@@ -71,13 +50,8 @@ contains
 
 
   subroutine mhd__initialize
-    call grid_ic.initialize
-    call grid_oc.initialize
-
-    call print_date_and_time
-    call print_constants
-    call ut__assert(DY==DX, "We assume uniform & same grid (dx=dy=dz).")
-    call ut__assert(DZ==DY, "We assume uniform & same grid (dx=dy=dz).")
+    call check_constants
+    call grid.initialize
   end subroutine mhd__initialize
 
   subroutine mhd__step

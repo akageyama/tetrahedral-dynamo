@@ -1,9 +1,12 @@
 program main
   use constants_m
   use mhd_m
+  use ut_m
   implicit none
 
   integer(DI) :: loop, loop_max = 10000
+
+  print *,'*** Exec starts on ' // ut__date_and_time()
 
   call mhd__initialize
   ! do loop = 1, loop_max

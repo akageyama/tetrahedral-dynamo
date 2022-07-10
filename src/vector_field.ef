@@ -4,16 +4,10 @@ module vector_field_m
   implicit none
   private
 
-  type, public :: vector_field_ic_t
-    type(scalar_field_ic_t) :: x
-    type(scalar_field_ic_t) :: y
-    type(scalar_field_ic_t) :: z
-  end type vector_field_ic_t
-
-  type, public :: vector_field_oc_t
-    type(scalar_field_oc_t) :: x
-    type(scalar_field_oc_t) :: y
-    type(scalar_field_oc_t) :: z
-  end type vector_field_oc_t
+  type, public :: vector_field_t
+    type(scalar_field_t) :: x
+    type(scalar_field_t) :: y
+    type(scalar_field_t) :: z
+  end type vector_field_t
 
 end module vector_field_m
