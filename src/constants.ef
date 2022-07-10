@@ -11,13 +11,16 @@ module constants_m
   real(DR) <const> :: TWOPI = PI*2
 
   !<< Simulation constants >>!
-  integer <const> :: NC = 100 ! num of grid for (outer) cube
+  integer <const> :: NCORE_HALF = 50
+  integer <const> :: NCORE = NCORE_HALF*2 ! Num of grid for the core cube
+                                          ! Must be even number.
   real(DR) <const> :: EL_TETRA = 1.0_DR ! edge length the tetra
-  real(DR) <const> :: EL_CORE_CUBE = EL_TETRA / sqrt(2.0_DR) ! E. L. of the inner core
-  real(DR) <const> :: EL_CUBE = 1.5_DR * EL_CORE_CUBE ! The factor must be >= 1.0.
-  real(DR) <const> :: DX = EL_CUBE / (NC-1)
+  real(DR) <const> :: EL_CORE = EL_TETRA / sqrt(2.0_DR) ! E. L. of the inner core
+  real(DR) <const> :: DX = EL_CORE / (NCORE-1)
   real(DR) <const> :: DY = DX
   real(DR) <const> :: DZ = DX
+  integer <const> :: NCUBE = 1.5*NCORE   ! The factor must be > 1
+  real(DR) <const> :: EL_CUBE = DX * (NCUBE-1)
 
 
  !!>

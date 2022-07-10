@@ -20,7 +20,7 @@ contains
 
   subroutine check_constants
 
-    call ut__assert( EL_CUBE >= EL_CORE_CUBE,  &
+    call ut__assert( EL_CUBE >= EL_CORE,  &
                     "Outer cube is smaller than inner cube? That's impossible!")
     call ut__assert(DY==DX, "We assume isotropic grid (dx=dy=dz).")
     call ut__assert(DZ==DY, "We assume isotropic grid (dx=dy=dz).")
@@ -34,9 +34,10 @@ contains
     call ut__message_leader("Math const. PI", PI)
     call ut__message_leader("Math const. TWOPI", TWOPI)
 
-    call ut__message_leader("Sim const. NC", NC)
+    call ut__message_leader("Sim const. NCORE", NCORE)
+    call ut__message_leader("Sim const. NCUBE", NCUBE)
     call ut__message_leader("Sim const. EL_TETRA", EL_TETRA)
-    call ut__message_leader("Sim const. EL_CORE_CUBE", EL_CORE_CUBE)
+    call ut__message_leader("Sim const. EL_CORE", EL_CORE)
     call ut__message_leader("Sim const. EL_CUBE", EL_CUBE)
     call ut__message_leader("Sim const. DX", DX)
     call ut__message_leader("Sim const. DY", DY)

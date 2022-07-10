@@ -4,41 +4,139 @@ module grid_m
   implicit none
   private
 
+!!>
+             y
+             |     x-y=0 on z=+a
+       .     |     .
+         .   |   .
+           . | .
+   - - - - - + - - - - - x
+           . | .
+         .   |   .
+       .     |     .
+             |    x+y=0  on z=-a
+  - 四面体の面は4つの正三角形
+  - 
+
+!!<
+
   type, public :: grid_t
     real(DR) :: d1 = 1 / (2*DX)
     real(DR) :: d2 = 1 / (DX*DX)
-    real(DR), dimension(NC) :: pos
+    real(DR), dimension(NCUBE) :: pos
+    char(len=7), dimension(NCUBE,NCUBE,NCUBE) :: role = "null"
   contains    
     procedure :: initialize
   end type grid_t
-
-  ! interface grid_t
-  !       module procedure initialize
-  !   end interface grid_t
 
   type(grid_t), public :: grid
 
 contains
 
+  function nearly_equal(x,y) result(ans)
+    real(DR) <in> :: x, y
+    logical :: ans
+
+    real(DR) <const> :: TOLERANCE = 1.e-12_DR
+    ans = abs(x-y) < TOLERANCE
+  end function nearly_equal
+
+
   subroutine initialize(self)
     class(grid_t) <out> :: self
-    integer :: i
+    integer :: i, j, k
+    real(DR) :: x, y, z
 
-    do i = 1, NC
+    do i = 1, NCUBE
       self.pos(i) = -EL_CUBE/2 + (i-1)*DX
     end do
 
-    do k = 1, NC
-      do j = 1, NC
-        do i = 1, NC
-          if 
+    ! do k = 1, NC
+    !   do j = 1, NC
+    !     do i = 1, NC
+    !       self.role(i,j,k) = "null" ! to find a left-over grid.
+    !     end do
+    !   end do
+    ! end do
 
+    associate(H => EL_CORE/2)
+      do k = 1, NCUBE
+        z = self.pos(k)
+        do j = 1, NCUBE
+          y = self.pos(j)
+          do i = 1, NCUBE
+            x = self.pos(i)
 
-          grid.role(i,j,k) = cube
+            if ( nearly_equal(x, +H) .and.  &
+                 nearly_equal(y, -H) .and.  &
+                 nearly_equal(z, -H) ) then
+              self.role(i,j,k) = "vert"
+            else if ( nearly_equal(x, -H) .and.  &
+                      nearly_equal(y, +H) .and.  &
+                      nearly_equal(z, -H) ) then
+              self.role(i,j,k) = "vert"
+            else if ( nearly_equal(x, +H) .and.  &
+                      nearly_equal(y, +H) .and.  &
+                      nearly_equal(z, +H) ) then
+              self.role(i,j,k) = "vert"
+            else if ( nearly_equal(x, -H) .and.  &
+                      nearly_equal(y, -H) .and.  &
+                      nearly_equal(z, +H) ) then
+              self.role(i,j,k) = "vert"
+            else if ( nearly_equal(x, +H) .and.  &
+                      nearly_equal(y, +z) ) then
+              self.role(i,j,k) = "edge" 
+            else if ( nearly_equal(x, -H) .and.  &
+                      nearly_equal(y, -z) ) then
+              self.role(i,j,k) = "edge" 
+            else if ( nearly_equal(y, +H) .and.  &
+                      nearly_equal(z, +x) ) then
+              self.role(i,j,k) = "edge" 
+            else if ( nearly_equal(y, -H) .and.  &
+                      nearly_equal(z, -x) ) then
+              self.role(i,j,k) = "edge" 
+            else if ( nearly_equal(z, +H) .and.  &
+                      nearly_equal(x, +y) ) then
+              self.role(i,j,k) = "edge" 
+            else if ( nearly_equal(z, -H) .and.  &
+                      nearly_equal(x, -y) ) then
+              self.role(i,j,k) = "edge" 
+            else if ( nearly_equal(-x-y-z, H) .and.  &
+                      )
+            else if (-x-y-z < H  .and.  &
+                     +x+y-z < H  .and.  &
+                     -x+y+z < H  .and.  &
+                     +x-y+z < H) then
+              self.role(i,j,k) = "tetra"
+            else if (-x-y-z > H  .or.  &
+                     +x+y-z > H  .or.  &
+                     -x+y+z > H  .or.  &
+                     +x-y+z > H)  then
+              self.role(i,j,k) = "vacuum"
+            end if
+          end do
+        end do
+      end do
+    end associate
+
+    do k = 1, NCUBE
+      do j = 1, NCUBE
+        do i = 1, NCUBE
+          if ( self.role(i,j,k) /= "vacuum" ) then
+            if ( self.role(i,j,k) /= "tetra" ) then
+              print *, i, j, k, self.role(i,j,k)
+            end if
+          end if
+        end do
+      end do
+    end do
+
+    call ut__assert( all(self.role /= "null"), &
+                     "Grid point role error." )
 
     call ut__message_leader("grid d1", self.d1)
     call ut__message_leader("grid d2", self.d2)
-    do i = 1, NC
+    do i = 1, NCUBE
       print *, 'grid_pos(', i, ') = ', self.pos(i)
     end do
 
