@@ -1,8 +1,8 @@
 !!>
 
     turtle_epsl.ef
-     2022.07.11: Rename turtle_epsl.f03 --> turtle_epsl.ef
-     2022.07.11: Minor changes by A. Kageyama
+      2022.07.11: Rename turtle_epsl.f03 --> turtle_epsl.ef
+      2022.07.11: Minor changes by Akira Kageyama
 
     turtle_epsl.f03
       2016.09.29: Minor revisions by Akira Kageyama, Kobe Univ.
@@ -91,31 +91,22 @@ contains
           Called : many
     !!<
 
-    if ( .not.File_open ) then
-      print *, "<turtle_epsl> You must call turtle_epsl__open in advance."
+    if ( .not. File_open ) then
+      print *, "<__MODULE__> You must call __FUNC__ in advance."
       return
     endif
   end subroutine check_file_open
 
 
-
   subroutine newline_r( x, y )
-    real, intent(in) :: x  ! Coordinates of
-    real, intent(in) :: y  !   the line head.
+    real <in> :: x, y  ! Position of the line head.
     !!>
-        Create a new line head. If you havn't finished previous line 
-        by turtle_epsl__endline, this finishes it before creating
-        a new line head. 
-           Calls   : check_file_open 
+        Make a new line head. 
+           Calls  : check_file_open 
            Called : none
     !!<
-
     call check_file_open
-    if ( Moving ) then
-       write( Device_num, '(A)' ) "stroke"
-       write( Device_num, * )
-       Moving = .false.
-    endif
+    call turtle_epsl__endline ! Finish line, if any.
     write( Device_num, '(A)' ) "newpath"
     write( Device_num, '(f0.5, 1X, f0.5, A)' ) x, y, " moveto"
     Moving = .true.
@@ -123,16 +114,14 @@ contains
 
 
   subroutine newline_i( x, y )
-    integer, intent(in) :: x
-    integer, intent(in) :: y
+    integer <in> :: x, y
 
     call newline_r( real(x), real(y) )
   end subroutine newline_i
 
 
   subroutine midline_r( x, y )
-    real, intent(in) :: x  ! Target position of 
-    real, intent(in) :: y  ! the line segment.
+    real <in> :: x, y  ! Target position of the line segment.
     !!>
         Draw a line segment from the previous point. This must
         be called after either this routine or turtle_epsl__newline.
@@ -140,9 +129,8 @@ contains
         Calls  : check_file_open
         Called : none
     !!<
-
     call check_file_open
-    if ( .not.Moving ) then
+    if ( .not. Moving ) then
        return
     endif
     write( Device_num, '(f0.5, 1X, f0.5, A)' ) x, y, " lineto"
@@ -150,16 +138,15 @@ contains
 
 
   subroutine midline_i( x, y )
-    integer, intent(in) :: x
-    integer, intent(in) :: y
+    integer <in> :: x, y
 
     call midline_r( real(x), real(y) )
   end subroutine midline_i
 
   subroutine move_r( x, y )
-    real, intent(in) :: x, y  ! Target position
+    real <in> :: x, y  ! Target position
     !!>
-        Head jump with no drawing.
+        Jump the head with no drawing.
        
         Calls  : check_file_open
         Called : none
@@ -170,7 +157,7 @@ contains
 
 
   subroutine move_i( x, y )
-    integer, intent(in) :: x, y
+    integer <in> :: x, y
     call move_r( real(x), real(y) )
   end subroutine move_i
 
@@ -184,7 +171,6 @@ contains
         Calls  : check_file_open
         Called : none
     !!<
-
     if ( Moving ) then
        write( Device_num, '(A)' ) "stroke"
        write( Device_num, * )
@@ -194,16 +180,14 @@ contains
 
 
   subroutine string_r( x, y, str )
-    real, intent(in) :: x  ! The target position
-    real, intent(in) :: y  ! of the string 
-    character(*), intent(in) :: str
+    real <in> :: x, y  ! Target position of string 
+    char(len=*) <in> :: str
     !!>
         Write a string on the specified position.
 
         Calls  : check_file_open
         Called :none
     !!<
-
     call check_file_open
     write( Device_num, '(f0.5, 1X, f0.5, A)' ) x, y, " moveto"
     write( Device_num, '(A)' ) "("//str//")"//" show"
@@ -212,19 +196,18 @@ contains
 
 
   subroutine string_i( x, y, str )
-    integer,      intent(in) :: x
-    integer,      intent(in) :: y
-    character(*), intent(in) :: str
+    integer <in> :: x, y
+    char(len=*) <in> :: str
 
     call string_r( real(x), real(y), str )
   end subroutine string_i
 
 
-  subroutine arc_r(x, y, r, sang, eang)
-    real, intent(in) :: x, y  ! Position of the arc.
-    real, intent(in) :: r     ! Radius of the arc.
-    real, intent(in) :: sang  ! Angle of arc start (in degree).
-    real, intent(in) :: eang  ! Angle of arc end (in degree).
+  subroutine arc_r( x, y, r, sang, eang )
+    real <in> :: x, y  ! Position of the arc.
+    real <in> :: r     ! Radius of the arc.
+    real <in> :: sang  ! Angle of arc start (in degree).
+    real <in> :: eang  ! Angle of arc end (in degree).
     !!>
         Draw an arc on the specified position. The angle is
         measured from the direction of the x-axis from the center.
@@ -243,18 +226,18 @@ contains
 
 
   subroutine arc_i( x, y, r, sang, eang )
-    integer, intent(in) :: x
-    integer, intent(in) :: y
-    integer, intent(in) :: r
-    integer, intent(in) :: sang
-    integer, intent(in) :: eang
+    integer <in> :: x
+    integer <in> :: y
+    integer <in> :: r
+    integer <in> :: sang
+    integer <in> :: eang
 
     call arc_r( real(x), real(y), real(r), real(sang), real(eang) )
   end subroutine arc_i
 
 
 !  Private
-!=============================================================
+!===========
 !  Public
 
 
@@ -321,7 +304,6 @@ contains
         Calls  : check_file_open
         Called : none
     !!<
-
     call check_file_open
     select case ( type )
       case (0)
@@ -329,7 +311,7 @@ contains
       case (1)
         write( Device_num, '(A)' ) "[5 5] 0 setdash"
       case default
-        print *, '<turtle_epsl__set_line_type> type error. type = ', type
+        print *, '<__FUNC__> type error. type = ', type
     end select
   end subroutine turtle_epsl__set_line_type
 
@@ -359,7 +341,6 @@ contains
         Calls  : none
         Called :none
     !!<
-
     Device_num = device_num_
     File_open = .true.
   end subroutine turtle_epsl__open
@@ -385,43 +366,39 @@ contains
 
   subroutine turtle_epsl__header
     call check_file_open
-    write(Device_num, '(A)') "→!PS-Adobe-3.0 EPSF-3.0"
-    write(Device_num, '(A, I0, 1X, I0)') "→→BoundingBox: 0 0 ", Width, Height
-    call turtle_epsl__fontsize_set(Fontsize)
-    call turtle_epsl__linewidth_set(Linewidth)
-    call turtle_epsl__color_set(Color→red,Color→green,Color→blue)
-    call turtle_epsl__translate(Translate_x,Translate_y)
-    write(Device_num, *)
-    write(Device_num, '(f0.5, 1X, f0.5, A)') Magfactor, Magfactor, " scale"
+    write( Device_num, '(A)' ) "%!PS-Adobe-3.0 EPSF-3.0"
+    write( Device_num, '(A, I0, 1X, I0)' ) "%%BoundingBox: 0 0 ", Width, Height
+    call turtle_epsl__fontsize_set( Fontsize )
+    call turtle_epsl__linewidth_set( Linewidth )
+    call turtle_epsl__color_set( Color.red, Color.green, Color.blue )
+    call turtle_epsl__translate( Translate_x, Translate_y )
+    write( Device_num, * )
+    write( Device_num, '(f0.5, 1X, f0.5, A)' ) Magfactor, Magfactor, " scale"
   end subroutine turtle_epsl__header
 
 
-  !------------------------------------------------------------
-  ! Write footer.
-  ! This is necessary for correct eps file.
-  ! Arguments :
-  !  none
-  ! Calls :
-  !  check_file_open
-  ! Called :
-  !  none
-  !------------------------------------------------------------
   subroutine turtle_epsl__footer
+    !!>
+        Write the EPSL footer.
+      
+        Calls  : check_file_open
+        Called : none
+    !!<
     call check_file_open
-    write(Device_num, '(A)') "showpage"
-    write(Device_num, *)
-    write(Device_num, '(A)') "→→EOF"
+    write( Device_num, '(A)' ) "showpage"
+    write( Device_num, * )
+    write( Device_num, '(A)' ) "%%EOF"
   end subroutine turtle_epsl__footer
 
 
+  subroutine turtle_epsl__fontsize_set( size )
+    real <in> :: size
 
-  subroutine turtle_epsl__fontsize_set(size)
-    real, intent(in) :: size
     Fontsize = size
     call check_file_open
-    write(Device_num, *)
-    write(Device_num, '(A, f0.5, A)') "/Helvetica findfont ", &
-         Fontsize, " scalefont setfont"
+    write( Device_num, * )
+    write( Device_num, '(A, f0.5, A)' ) "/Helvetica findfont ", &
+                                        Fontsize, " scalefont setfont"
   end subroutine turtle_epsl__fontsize_set
 
 
