@@ -1,0 +1,433 @@
+!!>
+
+    turtle_epsl.ef
+     2022.07.11: Rename turtle_epsl.f03 --> turtle_epsl.ef
+     2022.07.11: Minor changes by A. Kageyama
+
+    turtle_epsl.f03
+      2016.09.29: Minor revisions by Akira Kageyama, Kobe Univ.
+      2016.09.29: Renamed, epslib.f90 --> turtle_epsl.f03
+
+    epslib.f90
+      Developed by Takashi Shimizu, Kobe Univ.
+
+!!<  
+  
+module turtle_epsl_m
+  implicit none
+  private
+
+  public :: & !<< routines >>!
+            turtle_epsl__arc,            &
+            turtle_epsl__close,          &
+            turtle_epsl__color_set,      &
+            turtle_epsl__color_get,      &
+            turtle_epsl__endline,        &
+            turtle_epsl__fontsize_get,   &
+            turtle_epsl__fontsize_set,   &
+            turtle_epsl__footer,         &
+            turtle_epsl__header,         &
+            turtle_epsl__initialize,     &
+            turtle_epsl__linewidth_get,  &
+            turtle_epsl__linewidth_set,  &
+            turtle_epsl__midline,        &
+            turtle_epsl__move,           &
+            turtle_epsl__newline,        &
+            turtle_epsl__open,           &
+            turtle_epsl__string,         &
+            turtle_epsl__set_line_type,  &
+            turtle_epsl__translate
+
+
+  type color_t
+    real :: red, green, blue
+  end type color_t
+
+  type(color_t) :: Color
+  integer :: Device_num
+  logical :: File_open = .false.
+  logical :: Moving = .false.
+  integer :: Width  = 1000
+  integer :: Height = 1000
+  real :: Translate_x = 0.0
+  real :: Translate_y = 0.0
+  real :: Magfactor = 1.0
+  real :: Fontsize = 1.0
+  real :: Linewidth = 1.0
+
+  interface turtle_epsl__newline
+     module procedure newline_i, &
+                      newline_r
+  end interface turtle_epsl__newline
+
+  interface turtle_epsl__midline
+     module procedure midline_i, &
+                      midline_r
+  end interface turtle_epsl__midline
+
+  interface turtle_epsl__move
+     module procedure move_i, &
+                      move_r
+  end interface turtle_epsl__move
+
+  interface turtle_epsl__string
+     module procedure string_i, &
+                      string_r
+  end interface turtle_epsl__string
+
+  interface turtle_epsl__arc
+     module procedure arc_i, &
+                      arc_r
+  end interface turtle_epsl__arc
+
+
+contains
+
+
+  subroutine check_file_open
+    !!>
+       Check if turtle_epsl__open has already been called.
+           Calls : none
+          Called : many
+    !!<
+
+    if ( .not.File_open ) then
+      print *, "<turtle_epsl> You must call turtle_epsl__open in advance."
+      return
+    endif
+  end subroutine check_file_open
+
+
+
+  subroutine newline_r( x, y )
+    real, intent(in) :: x  ! Coordinates of
+    real, intent(in) :: y  !   the line head.
+    !!>
+        Create a new line head. If you havn't finished previous line 
+        by turtle_epsl__endline, this finishes it before creating
+        a new line head. 
+           Calls   : check_file_open 
+           Called : none
+    !!<
+
+    call check_file_open
+    if ( Moving ) then
+       write( Device_num, '(A)' ) "stroke"
+       write( Device_num, * )
+       Moving = .false.
+    endif
+    write( Device_num, '(A)' ) "newpath"
+    write( Device_num, '(f0.5, 1X, f0.5, A)' ) x, y, " moveto"
+    Moving = .true.
+  end subroutine newline_r
+
+
+  subroutine newline_i( x, y )
+    integer, intent(in) :: x
+    integer, intent(in) :: y
+
+    call newline_r( real(x), real(y) )
+  end subroutine newline_i
+
+
+  subroutine midline_r( x, y )
+    real, intent(in) :: x  ! Target position of 
+    real, intent(in) :: y  ! the line segment.
+    !!>
+        Draw a line segment from the previous point. This must
+        be called after either this routine or turtle_epsl__newline.
+
+        Calls  : check_file_open
+        Called : none
+    !!<
+
+    call check_file_open
+    if ( .not.Moving ) then
+       return
+    endif
+    write( Device_num, '(f0.5, 1X, f0.5, A)' ) x, y, " lineto"
+  end subroutine midline_r
+
+
+  subroutine midline_i( x, y )
+    integer, intent(in) :: x
+    integer, intent(in) :: y
+
+    call midline_r( real(x), real(y) )
+  end subroutine midline_i
+
+  subroutine move_r( x, y )
+    real, intent(in) :: x, y  ! Target position
+    !!>
+        Head jump with no drawing.
+       
+        Calls  : check_file_open
+        Called : none
+    !!<
+    call check_file_open
+    write( Device_num, '(f0.5, 1X, f0.5, A)' ) x, y, " moveto"
+  end subroutine move_r
+
+
+  subroutine move_i( x, y )
+    integer, intent(in) :: x, y
+    call move_r( real(x), real(y) )
+  end subroutine move_i
+
+
+
+  subroutine turtle_epsl__endline
+    !!>
+        Finish drawing a line. This routine must be called
+        after at least one call of turtle_epsl__midline.
+
+        Calls  : check_file_open
+        Called : none
+    !!<
+
+    if ( Moving ) then
+       write( Device_num, '(A)' ) "stroke"
+       write( Device_num, * )
+       Moving = .false.
+    endif
+  end subroutine turtle_epsl__endline
+
+
+  subroutine string_r( x, y, str )
+    real, intent(in) :: x  ! The target position
+    real, intent(in) :: y  ! of the string 
+    character(*), intent(in) :: str
+    !!>
+        Write a string on the specified position.
+
+        Calls  : check_file_open
+        Called :none
+    !!<
+
+    call check_file_open
+    write( Device_num, '(f0.5, 1X, f0.5, A)' ) x, y, " moveto"
+    write( Device_num, '(A)' ) "("//str//")"//" show"
+    write( Device_num, * )
+  end subroutine string_r
+
+
+  subroutine string_i( x, y, str )
+    integer,      intent(in) :: x
+    integer,      intent(in) :: y
+    character(*), intent(in) :: str
+
+    call string_r( real(x), real(y), str )
+  end subroutine string_i
+
+
+  subroutine arc_r(x, y, r, sang, eang)
+    real, intent(in) :: x, y  ! Position of the arc.
+    real, intent(in) :: r     ! Radius of the arc.
+    real, intent(in) :: sang  ! Angle of arc start (in degree).
+    real, intent(in) :: eang  ! Angle of arc end (in degree).
+    !!>
+        Draw an arc on the specified position. The angle is
+        measured from the direction of the x-axis from the center.
+
+        Calls  : check_file_open
+        Called : none
+    !!<
+
+    call check_file_open
+    write( Device_num, '(A)' ) "newpath"
+    write( Device_num, '(f0.5, 1X, f0.5, 1X, f0.5, 1X, f0.5, 1X, f0.5, A)' ) &
+                         x, y, r, sang, eang, " arc"
+    write( Device_num, '(A)' ) "stroke"
+    write( Device_num, * )
+  end subroutine arc_r
+
+
+  subroutine arc_i( x, y, r, sang, eang )
+    integer, intent(in) :: x
+    integer, intent(in) :: y
+    integer, intent(in) :: r
+    integer, intent(in) :: sang
+    integer, intent(in) :: eang
+
+    call arc_r( real(x), real(y), real(r), real(sang), real(eang) )
+  end subroutine arc_i
+
+
+!  Private
+!=============================================================
+!  Public
+
+
+  subroutine turtle_epsl__initialize( magfactor_pixel_per_physical_unit,  &
+                                      width_in_physical_unit,  &
+                                      height_in_physical_unit,  &
+                                      translate_x_in_physical_unit,  &
+                                      translate_y_in_physical_unit,  &
+                                      font_size_in_physical_unit,  &
+                                      linewidth_in_pixel )
+    real <in> :: magfactor_pixel_per_physical_unit,  &
+                 width_in_physical_unit,  &
+                 height_in_physical_unit,  &
+                 translate_x_in_physical_unit,  &
+                 translate_y_in_physical_unit,  &
+                 font_size_in_physical_unit
+    integer <in> :: linewidth_in_pixel
+
+    Magfactor = magfactor_pixel_per_physical_unit
+    Width  = width_in_physical_unit * Magfactor
+    Height = height_in_physical_unit * Magfactor
+    Translate_x = translate_x_in_physical_unit * Magfactor
+    Translate_y = translate_y_in_physical_unit * Magfactor
+    Fontsize = font_size_in_physical_unit
+
+    Color = color_t( red=0, green=0, blue=0 ) ! black
+    Linewidth = linewidth_in_pixel / Magfactor
+  end subroutine turtle_epsl__initialize
+
+
+  subroutine turtle_epsl__color_get( r, g, b )
+    real <out> :: r, g, b
+    r = Color.red
+    g = Color.green
+    b = Color.blue
+  end subroutine turtle_epsl__color_get
+
+
+  subroutine turtle_epsl__color_set( r, g, b )
+    real <in> :: r, g, b
+
+    Color = color_t( r, g, b )
+    call check_file_open
+    write( Device_num, * )
+    write( Device_num, '(f0.5, 1X, f0.5, 1X, f0.5, A)' )  &
+                       r, g, b, " setrgbcolor"
+  end subroutine turtle_epsl__color_set
+
+
+  subroutine turtle_epsl__translate( x, y )
+    real <in> :: x, y
+
+    call check_file_open
+    write( Device_num,* )
+    write( Device_num, '(f0.5, 1X, f0.5, A)' ) x, y, " translate"
+  end subroutine turtle_epsl__translate
+
+
+  subroutine turtle_epsl__set_line_type( type )
+    integer <in> :: type  ! Choice of the line type.
+    !!>
+        Set the line type mode.  0: Solid line.
+                                 1: Broken line.
+        Calls  : check_file_open
+        Called : none
+    !!<
+
+    call check_file_open
+    select case ( type )
+      case (0)
+        write( Device_num, '(A)' ) "[] 0 setdash"
+      case (1)
+        write( Device_num, '(A)' ) "[5 5] 0 setdash"
+      case default
+        print *, '<turtle_epsl__set_line_type> type error. type = ', type
+    end select
+  end subroutine turtle_epsl__set_line_type
+
+
+  subroutine turtle_epsl__linewidth_set( width )
+    real <in> :: width
+
+    call check_file_open
+    Linewidth = width
+    write( Device_num, * )
+    write( Device_num, '(f0.5, A)' ) width, " setlinewidth"
+  end subroutine turtle_epsl__linewidth_set
+
+
+  function turtle_epsl__linewidth_get() result(w)
+    real :: w
+    w = Linewidth
+  end function turtle_epsl__linewidth_get
+
+
+
+  subroutine turtle_epsl__open( device_num_ )
+    integer <in> :: device_num_
+    !!>
+        Set output to 'device_num_'.
+
+        Calls  : none
+        Called :none
+    !!<
+
+    Device_num = device_num_
+    File_open = .true.
+  end subroutine turtle_epsl__open
+
+
+  subroutine turtle_epsl__close
+    !!>
+        Close the file and check the line finish. After calling this routine, 
+        you can't write to file unless you call turtle_epsl__open again.
+  
+        Calls  : check_file_open
+        Called : none
+    !!<
+    call check_file_open
+    if ( Moving ) then
+      write( Device_num, '(A)' ) "stroke"
+      write( Device_num, * )
+      Moving = .false.
+    endif
+    File_open = .false.
+  end subroutine turtle_epsl__close
+
+
+  subroutine turtle_epsl__header
+    call check_file_open
+    write(Device_num, '(A)') "→!PS-Adobe-3.0 EPSF-3.0"
+    write(Device_num, '(A, I0, 1X, I0)') "→→BoundingBox: 0 0 ", Width, Height
+    call turtle_epsl__fontsize_set(Fontsize)
+    call turtle_epsl__linewidth_set(Linewidth)
+    call turtle_epsl__color_set(Color→red,Color→green,Color→blue)
+    call turtle_epsl__translate(Translate_x,Translate_y)
+    write(Device_num, *)
+    write(Device_num, '(f0.5, 1X, f0.5, A)') Magfactor, Magfactor, " scale"
+  end subroutine turtle_epsl__header
+
+
+  !------------------------------------------------------------
+  ! Write footer.
+  ! This is necessary for correct eps file.
+  ! Arguments :
+  !  none
+  ! Calls :
+  !  check_file_open
+  ! Called :
+  !  none
+  !------------------------------------------------------------
+  subroutine turtle_epsl__footer
+    call check_file_open
+    write(Device_num, '(A)') "showpage"
+    write(Device_num, *)
+    write(Device_num, '(A)') "→→EOF"
+  end subroutine turtle_epsl__footer
+
+
+
+  subroutine turtle_epsl__fontsize_set(size)
+    real, intent(in) :: size
+    Fontsize = size
+    call check_file_open
+    write(Device_num, *)
+    write(Device_num, '(A, f0.5, A)') "/Helvetica findfont ", &
+         Fontsize, " scalefont setfont"
+  end subroutine turtle_epsl__fontsize_set
+
+
+  function turtle_epsl__fontsize_get() result (size)
+    real :: size
+    size = Fontsize
+  end function turtle_epsl__fontsize_get
+
+end module turtle_epsl_m
