@@ -1,0 +1,105 @@
+module vis2d_m
+  use constants_m
+  use ut_m
+  implicit none
+  private
+
+  type viz2d_t
+    type(turtle__scalar2d_cartesian_t) :: test
+    type(turtle__vector2d_cartesian_t) :: velocity
+    type(turtle__vector2d_cartesian_t) :: magfield
+    type(turtle__common_t) :: com
+  end type viz2d_t
+
+
+contains  
+
+
+  subroutine viz2d__initialize(viz2d)
+    type(viz2d_t) <io> :: viz2d
+
+    real(SR), allocatable :: global_xpos(:)
+    real(SR), allocatable :: global_ypos(:)
+    integer(SI) :: mx, my
+
+    viz2d.com.file_unit   = FILE_NUM.insitu2d
+    viz2d.com.simreg.nw.x = simulation_region.xmin
+    viz2d.com.simreg.nw.y = simulation_region.ymax
+    viz2d.com.simreg.ne.x = simulation_region.xmax
+    viz2d.com.simreg.ne.y = simulation_region.ymax
+    viz2d.com.simreg.se.x = simulation_region.xmax
+    viz2d.com.simreg.se.y = simulation_region.ymin
+    viz2d.com.simreg.sw.x = simulation_region.xmin
+    viz2d.com.simreg.sw.y = simulation_region.ymin
+    viz2d.com.magfactor_pixel_per_unit_length = 25.0
+
+    mx = NX_GLOBAL
+    my = NY_GLOBAL
+
+    allocate( global_xpos(mx), global_ypos(my) )
+
+    call iGrid_global_pos
+    call iSet_pressure
+    call iSet_velocity
+    call iSet_magfield
+
+    deallocate( global_xpos, global_ypos)
+
+  contains
+
+    subroutine iGrid_global_pos
+      integer :: ig, jg
+      do ig = 1 , mx
+        global_xpos(ig) = SIMULATION_REGION.xmin + grid.s.d0*(ig-0.5_DR)
+      end do
+      do jg = 1 , my
+        global_ypos(jg) = SIMULATION_REGION.ymin + grid.s.d0*(jg-0.5_DR)
+      end do
+    end subroutine iGrid_global_pos
+
+    subroutine iSet_magfield
+      viz2d.magfield.nx = mx
+      viz2d.magfield.ny = my
+      viz2d.magfield.stride_for_arrow = 4
+      viz2d.magfield.arrow_normalization_unit = -999.999
+      allocate(viz2d.magfield.xpos(mx))
+      allocate(viz2d.magfield.ypos(my))
+      allocate(viz2d.magfield.x(mx,my))
+      allocate(viz2d.magfield.y(mx,my))
+      viz2d.magfield.tag = "magfield"
+      viz2d.magfield.xpos(:) = global_xpos(:)
+      viz2d.magfield.ypos(:) = global_ypos(:)
+    end subroutine iSet_magfield
+
+    subroutine iSet_velocity
+      viz2d.velocity.nx = mx
+      viz2d.velocity.ny = my
+      viz2d.velocity.stride_for_arrow = 4
+      viz2d.velocity.arrow_normalization_unit = -999.999
+      allocate(viz2d.velocity.xpos(mx))
+      allocate(viz2d.velocity.ypos(my))
+      allocate(viz2d.velocity.x(mx,my))
+      allocate(viz2d.velocity.y(mx,my))
+      viz2d.velocity.tag = "velocity"
+      viz2d.velocity.xpos(:) = global_xpos(:)
+      viz2d.velocity.ypos(:) = global_ypos(:)
+    end subroutine iSet_velocity
+
+
+    subroutine iSet_pressure
+      viz2d.pressure.nx = mx
+      viz2d.pressure.ny = my
+      viz2d.pressure.contour_upper = 0.0_SR
+      viz2d.pressure.contour_lower = 0.0_SR
+      viz2d.pressure.contour_levels = 20
+      allocate(viz2d.pressure.xpos(mx))
+      allocate(viz2d.pressure.ypos(my))
+      allocate(viz2d.pressure.f(mx,my))
+      viz2d.pressure.tag = "pressure"
+      viz2d.pressure.xpos(:) = global_xpos(:)
+      viz2d.pressure.ypos(:) = global_ypos(:)
+    end subroutine iSet_pressure
+
+  end subroutine viz2d__initialize
+
+end module vis2d_m
