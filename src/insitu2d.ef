@@ -1,26 +1,23 @@
-!-----------------------------------------------------------------------------
-! insitu2d.f03
-!
-!  This was insitu2d.f90. Copied from yyz_relax project.
-!
-!  16.09.28: Renamed. insitu2d.f90 --> insitu2d.f03
-!
-!-----------------------------------------------------------------------------
-! insitu2d.f90
-!
-!  2015.10.12: Developed by T.Shimizu.
-!  2015.11.27: Revised by A. Kageyama, for parallel processing.
-!              - This module directly calls turtle library.
-!              - No work arrays, such as Slice_yin_midtht, etc.
-!              - The inner core grid numbers (nx,ny,nz) can be odd.
-!-----------------------------------------------------------------------------
+!!>
+ 
+  insitu2d.f90
+    2015.10.12: Original code developed by T. Shimizu for his master thesis.
+    2015.11.27: Revised by A. Kageyama, for parallel processing.
+               - This module calls turtle library.
+               - No work arrays, such as Slice_yin_midtht, etc.
+               - The inner core grid numbers (nx,ny,nz) can be odd.
+  insitu2d.f03
+    2016.09.28: Renamed. This was insitu2d.f90. Copied from yyz_relax project.
+ 
+  insitu2d.ef
+    2022.07.12: Renamed. This was insitu2d.f03. Convert to eFortran.
+
+!!<
 
 module insitu2d_m
   use const_m
   use kutimer_m
-  use namelist_m
   use turtle_m
-  use ut_m
   implicit none
   private
   public :: & !< routines >!
@@ -38,143 +35,169 @@ module insitu2d_m
 !    type(insitu2d_space_t) :: boundary
 ! end type insitu2d_space_and_time_t
 
-  integer <const> :: INSITU2D_FILE_NAME_LENGTH_MAX = 200
+  integer <const> :: FILE_NAME_MAX = 200
 
-  character(len=CHAR.taglen) :: Dir_for_turtle
+  char(len=*) <const> :: TURTLE2D_DIR = "./insitu2d"
   integer :: File_for_turtle  ! will be set by initialize.
 
 
 contains
 
 
-    subroutine draw_xyplane_border(com,tag)
-      type(turtle__common_t), intent(in) :: com
-      character(len=*), intent(in) :: tag
+    subroutine draw_xyplane_border( com, tag )
+      type(turtle__common_t) <in> :: com
+      character(len=*) <in> :: tag
 
-      character(len=INSITU2D_FILE_NAME_LENGTH_MAX) :: filename
+      character(len=FILE_NAME_MAX) :: filename
 
-      call make_filename(com,tag,filename)
+      call make_filename( com, tag, filename )
       open(File_for_turtle,  &
-           file=trim(Dir_for_turtle)//"/"//trim(filename))
+           file=trim(TURTLE2D_DIR)//"/"//trim(filename))
         call turtle__open(File_for_turtle)
-  !       call turtle__rectangle_broken(..
-          call turtle__rectangle(com.simreg)
+  !     call turtle__rectangle_broken(..
+        call turtle__rectangle( com.simreg )
         call turtle__close
       close(File_for_turtle)
     end subroutine draw_xyplane_border
 
 
-    subroutine draw_xyplane_contour(com,scalar)
-      type(turtle__common_t), intent(in) :: com
-      type(turtle__scalar2d_cartesian_t), intent(in) :: scalar
+    subroutine draw_xyplane_contour( com, scalar )
+      type(turtle__common_t) <in> :: com
+      type(turtle__scalar2d_cartesian_t) <in> :: scalar
 
-      character(len=INSITU2D_FILE_NAME_LENGTH_MAX) :: filename
+      character(len=FILE_NAME_MAX) :: filename
       character(len=100) :: message
 
-      call iMake_message(message)
+      call iMake_message( message )
 
-      call make_filename(com,scalar.tag,filename)
+      call make_filename( com, scalar.tag, filename )
 
-      open(File_for_turtle,  &
-           file=trim(Dir_for_turtle)//"/"//trim(filename))
-        call turtle__open(File_for_turtle)
+      open( File_for_turtle,  &
+            file=trim(TURTLE2D_DIR)//"/"//trim(filename) )
+        call turtle__open( File_for_turtle )
           call turtle__eps_header
-          call turtle__string_top(trim(filename))
-          call turtle__string_bottom(message)
+          call turtle__string_top( trim( filename ) )
+          call turtle__string_bottom( message )
         call turtle__close
-        call turtle__open(File_for_turtle)
+        call turtle__open( File_for_turtle )
           call turtle__set_color( TURTLE__BLUE )
-          call turtle__rectangle(com.simreg)
+          call turtle__rectangle( com.simreg )
         call turtle__close
-        call turtle__open(File_for_turtle)
+        call turtle__open( File_for_turtle )
           call turtle__set_color( TURTLE__BLACK )
-          call turtle__contour_cartesian(scalar)
+          call turtle__contour_cartesian( scalar )
         call turtle__close
-        call turtle__open(File_for_turtle)
+        call turtle__open( File_for_turtle )
           call turtle__eps_footer
         call turtle__close
-      close(File_for_turtle)
+      close( File_for_turtle )
 
     contains
 
-      subroutine iMake_message(message)
-        character(len=100), intent(out) :: message
-        character(len=10) :: str10_vmax, str10_vmin
+      subroutine iMake_message( message )
+        char(len=100) <out> :: message
+        char(len=10) :: str10_vmax, str10_vmin
         real :: vmax, vmin
-        vmax = maxval(scalar.f(:,:))
-        vmin = minval(scalar.f(:,:))
-        str10_vmax = ut__real_to_str10(vmax)
-        str10_vmin = ut__real_to_str10(vmin)
+        vmax = maxval( scalar.f(:,:) )
+        vmin = minval( scalar.f(:,:) )
+        str10_vmax = real_to_str10( vmax )
+        str10_vmin = real_to_str10( vmin )
         message = 'vmax = '//str10_vmax//'  vmin = '//str10_vmin
       end subroutine iMake_message
     end subroutine draw_xyplane_contour
 
 
-    subroutine draw_xyplane_vector(com,vector)
-      type(turtle__common_t), intent(in) :: com
-      type(turtle__vector2d_cartesian_t), intent(in) :: vector
+    subroutine draw_xyplane_vector( com, vector )
+      type(turtle__common_t) <in> :: com
+      type(turtle__vector2d_cartesian_t) <in> :: vector
 
-      character(len=INSITU2D_FILE_NAME_LENGTH_MAX) :: filename
+      character(len=FILE_NAME_MAX) :: filename
       character(len=100) :: message
 
-      call iMake_message(message)
+      call iMake_message( message )
 
-      call make_filename(com,vector.tag,filename)
-      open(File_for_turtle,  &
-           file=trim(Dir_for_turtle)//'/'//trim(filename))
-        call turtle__open(File_for_turtle)
+      call make_filename( com, vector.tag, filename )
+      open( File_for_turtle,  &
+            file=trim( TURTLE2D_DIR )//'/'//trim( filename ) )
+        call turtle__open( File_for_turtle )
           call turtle__eps_header
-          call turtle__string_top(trim(filename))
-          call turtle__string_bottom(message)
+          call turtle__string_top( trim( filename ) )
+          call turtle__string_bottom( message )
         call turtle__close
-        call turtle__open(File_for_turtle)
+        call turtle__open( File_for_turtle )
           call turtle__set_color( TURTLE__BLUE )
-          call turtle__rectangle(com.simreg)
+          call turtle__rectangle( com.simreg )
         call turtle__close
-        call turtle__open(File_for_turtle)
+        call turtle__open( File_for_turtle )
           call turtle__set_color( TURTLE__BLACK )
-          call turtle__vector_cartesian(vector)
+          call turtle__vector_cartesian( vector )
         call turtle__close
-        call turtle__open(File_for_turtle)
+        call turtle__open( File_for_turtle )
           call turtle__eps_footer
         call turtle__close
       close(File_for_turtle)
 
     contains
 
-      subroutine iMake_message(message)
-        character(len=100), intent(out) :: message
-        character(len=10) :: str10_vmax
+      subroutine iMake_message( message )
+        char(len=100) <out> :: message
+        char(len=10) :: str10_vmax
         real :: vmax
 
 ! error at vector**2
-        vmax = sqrt(maxval(vector.x(:,:)**2  &
-             +vector.y(:,:)**2))
+        vmax = sqrt( maxval( vector.x(:,:)**2  &
+                           + vector.y(:,:)**2 ) )
 
 
-        str10_vmax = ut__real_to_str10(vmax)
+        str10_vmax = real_to_str10( vmax )
         message = 'vmax = '//str10_vmax
       end subroutine iMake_message
     end subroutine draw_xyplane_vector
 
 
-    subroutine make_filename(com,tag,name)
-      type(turtle__common_t), intent(in) :: com
-      character(len=*), intent(in) :: tag
-      character(len=INSITU2D_FILE_NAME_LENGTH_MAX), intent(out) :: name
+    function i2c7( i )
+      integer(SI) <in> :: i
+      char(len=7) :: i2c7
+      !!>
+          Convert an integer into 7 characters.
+                  e.g., i=10 --> str7="0000010"
+      !!<
+      if ( i < 0 ) then
+         i2c7 = 'NNNNNNN'
+      else if ( i > 9999999 ) then
+         i2c7 = 'XXXXXXX'
+      else
+         write( i2c7, '(i7.7)' ) i
+      end if
+    end function i2c7
 
-      character(len=1) <const> :: CHAR_DOT = "."
-      character(len=10) :: str_time
-      character(len=7)  :: str_step
+    subroutine make_filename( com, tag, name )
+      type(turtle__common_t) <in> :: com
+      char(len=*) <in> :: tag
+      char(len=FILE_NAME_MAX), intent(out) :: name
 
-      str_time = ut__real_to_str10(com.t)
-      str_step = ut__i2c7(com.step)
+      char(len=1) <const> :: CHAR_DOT = "."
+      char(len=10) :: str_time
+      char(len=7)  :: str_step
 
-      name = trim(tag)//CHAR_DOT// &
+      str_time = real_to_str10( com.t )
+      str_step = i2c7( com.step )
+
+      name = trim( tag )//CHAR_DOT// &
              "s="//str_step//CHAR_DOT//  &
              "t="//str_time//CHAR_DOT//  &
              'eps'
     end subroutine make_filename
+
+    function real_to_str10(f) result(str)
+      real <in> :: f
+      char(len=10) :: str
+      !!>
+        real to character string, e.g., f=0.123456 ==> str="+1.235E1"
+      !!<
+      write( str, '(1pe10.3)' ) f
+      if( str(1:1)==' ' ) str(1:1)='+'
+    end function real_to_str10    
 
 
 !  private
@@ -182,55 +205,52 @@ contains
 !  public
 
 
-    subroutine insitu2d__initialize(com)
-      type(turtle__common_t), intent(in) :: com
-      Dir_for_turtle = namelist.dir_turtle.get_val()
-      call turtle__initialize(com)
+    subroutine insitu2d__initialize( com )
+      type(turtle__common_t) <in> :: com
+      call turtle__initialize( com )
     end subroutine insitu2d__initialize
 
 
-    subroutine insitu2d__draw(com,scalar01, &
-                                  scalar02, &
-                                  scalar03, &
-                                  vector01, &
-                                  vector02, &
-                                  vector03)
-      type(turtle__common_t), intent(in) :: com
-      type(turtle__scalar2d_cartesian_t), optional, &
-                    intent(in) :: scalar01,  &
-                                  scalar02,  &
-                                  scalar03
-      type(turtle__vector2d_cartesian_t), optional, &
-                    intent(in) :: vector01,  &
-                                  vector02,  &
-                                  vector03
+    subroutine insitu2d__draw( com, scalar01, &
+                                    scalar02, &
+                                    scalar03, &
+                                    vector01, &
+                                    vector02, &
+                                    vector03 )
+      type(turtle__common_t) <in> :: com
+      type(turtle__scalar2d_cartesian_t) <optin> :: scalar01,  &
+                                                    scalar02,  &
+                                                    scalar03
+      type(turtle__vector2d_cartesian_t) <optin> :: vector01,  &
+                                                    vector02,  &
+                                                    vector03
 
                                         !{insit2}{{STT}}
 
-!-- skip -- call draw_xyplane_border(com,'border')
+!-- skip -- call draw_xyplane_border( com, 'border' )
 
-      if ( present(scalar01) ) then
+      if ( present( scalar01 ) ) then
         call draw_xyplane_contour(com,scalar01)
                                         !{insit2}{scal 1}
       end if
-      if ( present(scalar02) ) then
-        call draw_xyplane_contour(com,scalar02)
+      if ( present( scalar02 ) ) then
+        call draw_xyplane_contour( com, scalar02 )
                                         !{insit2}{scal 2}
       end if
-      if ( present(scalar03) ) then
-        call draw_xyplane_contour(com,scalar03)
+      if ( present( scalar03 ) ) then
+        call draw_xyplane_contour( com, scalar03 )
                                         !{insit2}{scal 3}
       end if
-      if ( present(vector01) ) then
-         call draw_xyplane_vector(com,vector01)
+      if ( present( vector01 ) ) then
+         call draw_xyplane_vector( com, vector01 )
                                         !{insit2}{vect 1}
       end if
-      if ( present(vector02) ) then
-        call draw_xyplane_vector(com,vector02)
+      if ( present( vector02 ) ) then
+        call draw_xyplane_vector( com, vector02 )
                                         !{insit2}{vect 2}
       end if
-      if ( present(vector03) ) then
-        call draw_xyplane_vector(com,vector03)
+      if ( present( vector03 ) ) then
+        call draw_xyplane_vector( com, vector03 )
                                         !{insit2}{vect 3}
       end if
                                         !{insit2}{{END}}

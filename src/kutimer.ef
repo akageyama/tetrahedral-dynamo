@@ -1,41 +1,32 @@
-
 !!>
-
-  cg-mhd: Cubic Grid MHD Solver
-                                           Akira Kageyama
-                                   kage@port.kobe-u.ac.jp
-                                               Kobe Univ.
-
-  Note:
-   * Written in "E-language". Apply "efpp.sh" for Fortran 2003.
-   * We take the ``Keep it simple'' approach:
-       + The grid spacings in three (x,y, and z) directions
-         are all the same, i.e., dx=dy=dz.
-       + Each MPI process has exactly the same volume of space as
-         well as the grid spans. Therefore, each process has the
-         same size of arrays for variables.
-       + We do not care about the memory size. We take the
-         so-called "rich-man's approach".
-       + We also disregard the interprocess communication
-         redundancy. Simplicity surpasses communication stinginess.
 
   kutimer.e95
     * Timer utility
 
   History
+
+  timer.f90
     2013.06.05: This comes from my old timer.f90.
     2013.08.04: Removed timer__start and __end.
     2013.08.04: TM_STT & _END be public.
     2017.07.03: use mpi. print by only rank 0.
     2017.07.09: Merged the bugfix by T. Furuzono.
+
+  timer.e03
     2017.07.09: Use efpp.sh macros.
+
+  kutimer.e03
     2017.07.17: This is kutimer.e03. Renamed from timer.e03.
+
+  kutiemr.ef
+    2022.07.12: This was kutimer.e03. -kage. T
+    2022.07.12: Introduce using_mpi.
 
 !!<
 
 
 module kutimer_m
-  use mpi
+!  use mpi
   implicit none
   private
   public :: & !< routines >!
@@ -97,7 +88,7 @@ contains
   end function get_dateandtime
 
 
-  function get_index(key)
+  function get_index( key )
     char(len=KEYLEN) <in> :: key
     ![ char string name (key)-->index integer, Returns 0 when it's new.]
     integer :: get_index
@@ -112,7 +103,7 @@ contains
   end function get_index
 
 
-  function get_subindex(i, subkey)
+  function get_subindex( i, subkey )
     integer <in> :: i
     ! [ char string name (subkey)-->index integer, Returns 0 when new.]
     char(len=KEYLEN) <in> :: subkey
@@ -120,7 +111,7 @@ contains
     integer :: j
     get_subindex = 0
     do j = 1 , ttb(i).sub_key_n
-      if(ttb(i).sub_keyname(j) == subkey) then
+      if( ttb(i).sub_keyname(j) == subkey ) then
         get_subindex = j
         return
       end if
@@ -135,11 +126,9 @@ contains
     real :: ts           ! total seconds
     integer :: h,m,s     ! hour, minute, second
 
-    !---------Added by Takuya Furuzono on 2014.10.30-----!
-    integer :: ttmp                                      !
-    !----------------------------------------------------!
+    integer :: ttmp
 
-    if (jump_flag) return                           ! Error happend before.
+    if ( jump_flag ) return                         ! Error happend before.
 
     call system_clock(dummy,tick)
     dateandtime_end = get_dateandtime()
@@ -155,7 +144,7 @@ contains
       print '(/8x,a5,a6,a5,1x,i9,a8)',                      & ! Title
                         "///  ",ttb(i).keyname,"  ///",     &
                                 ttb(i).call_cntr," call"
-      if(.not. ttb(i).pair_check) then
+      if( .not. ttb(i).pair_check ) then
         print *," <tm> 'E' isn't called."    ! Call error.
         cycle                                ! Ignore this.
       end if
@@ -177,52 +166,48 @@ contains
                        "[",h,"h",m,"m",s,"s","]"
       print '(2x,40a1)', ('-',k=1,40)        ! Horizontal line
     end do
-    call system_clock(job_end_time)
+    call system_clock( job_end_time )
     print '(/50a1)', ('*',i=1,50)            ! Horizontal line
     print '(3x,"         TOTAL LOOP = ",i12)',loop_counter
-    !--------- Revised by Takuya Furuzono on 2014.10.30 -----------!
-    ttmp = job_end_time - job_start_time
-    if(ttmp<0) then
-      ttmp += C_MAX
-    end if
-    !--------------------------------------------------------------!
+
+    ttmp = job_end_time - job_start_time  ! Special care for a very 
+    if( ttmp<0 ) then                     ! long job. This was 
+      ttmp += C_MAX                       ! noticed by Takuya Furuzono
+    end if                                ! in Oct. 2014.
+
     print '(3x,"             1 STEP : ",f12.5," sec")', &
                    real(ttmp)/real(tick)/loop_counter
     print '(50a1)', ('*',i=1,50)            ! Horizontal line
   end subroutine printer
 
 
-  subroutine tm1(key_, stt_or_end)
+  subroutine tm1( key_, stt_or_end )
     char(len=KEYLEN) <in> :: key_
     integer <in> :: stt_or_end
     ! [ Called in the first and the last as a pair in a program unit. ]
 
-    !----------Added by Takuya Furuzono on 2014.10.27-----------!
     integer :: ctmp
-    !-----------------------------------------------------------!
     logical :: just_once = .true.
     integer :: i,c                            ! i=work, c=clock ticks
     char(len=KEYLEN):: key
     ===<just_once>===
-       !------ Changed by Takuya Furuzono on 2014.11.10--------------!
-       ! Get the compiler's default count_max
-      call system_clock(job_start_time,count_max=C_MAX) ! Get the clock counter.
+      call system_clock( job_start_time, count_max=C_MAX ) ! Get default count_max.
       dateandtime_start = get_dateandtime()
     ===</just_once>===
-    if(jump_flag) return                      ! Error happend before.
+    if( jump_flag ) return                    ! Error happend before.
     call system_clock(c)                      ! Get the clock counter.
     key = adjustl(key_)
     i = get_index(key)
 
-    if (i == 0) then
-      if (stt_or_end == TM_END) then           ! Call error.
-        print *,"<tm> *** kutimer__end called before kutimer_start for key = ",key
+    if ( i == 0 ) then
+      if ( stt_or_end == TM_END ) then        ! Call error.
+        print *, "<tm> *** kutimer__end called before kutimer_start for key = ",key
         jump_flag = .true.                    ! Error flag.
         return
       end if
       i = key_n + 1                           ! Call is OK, but too much.
-      if (i > MAX_KEY_N) then                 ! Too many keys?
-        print *,"<tm>  *** over max key number"  ! Must increase MAX_KEY_N.
+      if ( i > MAX_KEY_N ) then               ! Too many keys?
+        print *, "<tm>  *** over max key number"  ! Must increase MAX_KEY_N.
         jump_flag = .true.                    ! Error flag.
         return
       end if
@@ -262,29 +247,31 @@ contains
     subkey = adjustl(subkey_)
     i = get_index(key)
     if(i == 0) then                     ! Forgot to call tm1 before.
-      print *, '<tm> *** No key for this subkey: key=',key,' subkey=',subkey
+      print *, '<__FUNC__> *** No key for '  &
+            // 'this subkey. key=', key,     &
+                        ' subkey= ',subkey
       jump_flag = .true.                ! Error flag on.
       return
     end if
-    j = get_subindex(i,subkey)
-    if (j == 0) then
+    j = get_subindex( i, subkey )
+    if ( j == 0 ) then
       j = ttb(i).sub_key_n + 1
-      if (j > MAX_SUBKEY_N) then
-        print *,"<tm> *** over max sub key number." ! Increase MAX_SUBKEY_N.
+      if ( j > MAX_SUBKEY_N ) then
+        print *,"<__FUNC__> *** over max sub key number." ! Increase MAX_SUBKEY_N.
         print *,"                     at key = ", key
-        jump_flag = .true.              ! Error flag on.
+        jump_flag = .true.                                ! Error flag on.
         return
       end if
       ttb(i).sub_key_n = j
       ttb(i).sub_keyname(j) = subkey
     end if
-   !----------Revised by Takuya Furuzono on 2014.11.10---------!
-    ctmp = c-ttb(i).sub_last_tim
-    if(ctmp<0) then
-      ctmp += C_MAX
+
+    ctmp = c - ttb(i).sub_last_tim  ! This part was
+    if( ctmp < 0 ) then             ! revised by 
+      ctmp += C_MAX                 ! Takuya Furuzono.
     end if
     ttb(i).sub_total_tim(j) += ctmp
-   !-----------------------------------------------------------!
+
     call system_clock(c)
     ttb(i).sub_last_tim = c
   end subroutine tm2
@@ -298,24 +285,30 @@ contains
     loop_counter += 1
   end subroutine kutimer__count
 
-  subroutine kutimer__end(key_)
+  subroutine kutimer__end( key_ )
     char(len=KEYLEN) <in> :: key_
-    call tm1(key_,TM_END)
+    call tm1( key_, TM_END )
   end subroutine kutimer__end
 
 
   subroutine kutimer__print
+    logical :: using_mpi = .false.
     logical :: mpi_is_on
     integer :: myrank, ierr
 
-    call MPI_INITIALIZED(mpi_is_on, ierr)
-    if ( mpi_is_on ) then
-      call MPI_COMM_RANK(MPI_COMM_WORLD, myrank, ierr)
-      if ( myrank==0 ) call printer
+    if ( .not. using_mpi ) then
+      call printer
+!   else 
+!     call MPI_INITIALIZED(mpi_is_on, ierr)
+!     if ( mpi_is_on ) then
+!       call MPI_COMM_RANK(MPI_COMM_WORLD, myrank, ierr)
+!       if ( myrank==0 ) call printer
+!     end if
     end if
   end subroutine kutimer__print
 
-  subroutine kutimer__start(key_)
+
+  subroutine kutimer__start( key_ )
     char(len=KEYLEN) <in> :: key_
     ! [ Called first and last in a pair in a program unit. ]
     call tm1(key_,TM_STT)
