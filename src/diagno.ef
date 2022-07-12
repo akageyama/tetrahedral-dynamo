@@ -1,0 +1,548 @@
+
+!!>
+
+  cg-mhd: Cubic Grid MHD Solver
+                                           Akira Kageyama
+                                   kage@port.kobe-u.ac.jp
+                                               Kobe Univ.
+
+  Note:
+   * Written in "E-language". Apply "efpp.sh" for Fortran 2003.
+   * We take the ``Keep it simple'' approach:
+       + The grid spacings in three (x,y, and z) directions
+         are all the same, i.e., dx=dy=dz.
+       + Each MPI process has exactly the same volume of space as
+         well as the grid spans. Therefore, each process has the
+         same size of arrays for variables.
+       + We do not care about the memory size. We take the
+         so-called "rich-man's approach".
+       + We also disregard the interprocess communication
+         redundancy. Simplicity surpasses communication stinginess.
+
+  diagno.e03
+    * Physical checkup.
+
+  History
+    2013.06.05: Developed by Akira Kageyama
+    2013.06.05: Converted from "diagno.f95" of Yin-Yang dynamo code.
+    2013.06.25: Minor +- in diagno__init.
+    2013.08.08: + diagno__save_avs_data
+    2013.08.08: Combined check, calc_dt, save_avs_data to diagno.
+    2016.06.16: +- check_and_save_data by Y. Ueda.
+    2017.04.17: Dir_for_small_data --> Dir_for_data by Y. Ueda.
+    2017.05.15: Divided check_and_save_data into helth_check and
+                calc_various_values by Y. Ueda.
+    2017.05.15: +- location of call mpiut__allreduce_max by Y. Ueda.
+    2017.06.05: Renamed helth_check --> health_check by Y. Ueda.
+    2017.07.02: Use revised type(mhd_field_t). by kage.
+    2017.07.02: Renamed calc_various_values calc_integrated_values.
+    2017.07.03: Moved cfl_dt part to cfl.e03. by kage.
+
+!!<
+
+
+module diagno_m
+  use avsdata_m
+! use cfunc_m
+  use const_m
+  use equations_m
+  use grid_m
+  use insitu2d_m
+  use kutimer_m
+  use mainfld_m
+  use mpiut_m
+  use namelist_m
+  use psim_m
+  use subfld_m
+  use subsubfld_m
+  use turtle_m
+  use types_m
+  use ut_m
+  use vector_m
+  implicit none
+  private
+  public :: & !< routines >!
+            diagno__biopsy
+
+  type viz2d_t
+    type(turtle__scalar2d_cartesian_t) :: pressure
+    type(turtle__vector2d_cartesian_t) :: velocity
+    type(turtle__vector2d_cartesian_t) :: magfield
+    type(turtle__common_t) :: com
+  end type viz2d_t
+
+
+contains
+
+
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+  subroutine integrated_values(psim,t,mainf,subf,subsubf)
+    type(psim_t) <in> :: psim
+    type(time_t)      <in> :: t
+    type(mainfld_t) <in> :: mainf
+    type(subfld_t) <in> :: subf
+    type(subsubfld_t) <io> :: subsubf
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+    !!>
+      Purpose: Calc data such as energies and total mass.
+       Author: Akira Kageyama
+         Date: 2013.06.26 Added "degree_of_freedom" and comments.
+         Date: 2013.08.06 mod(nloop) --> mod(skip_counter).
+         Date: 2014.11.04 Major revision. No magmoments.
+         Date: 2016.06.16 Added skip_counter+1 in
+               "if( mod(skip_counter,SKIP) /= 0 )"
+    !!<
+
+    integer(SI) <const> :: ID_MASS_INTGRL =  1
+    integer(SI) <const> :: ID_FLOW_ENERGY =  2
+    integer(SI) <const> :: ID_MAGN_ENERGY =  3
+    integer(SI) <const> :: ID_THRM_ENERGY =  4 !<----+
+                                                     ! Must
+                                                     ! be the
+                                                     ! same.
+    integer(SI) <const> :: ID_NUM         =  4 !<----+
+
+    real(DR) <const> :: GAMMA = GASS.gamma
+    real(DR) <const> :: GAMMA1 = GAMMA-1
+    real(DR) <const> :: DEGREE_OF_FREEDOM = 2.0_DR/GAMMA1
+    real(DR), dimension(ID_NUM) :: val
+    integer(SI) :: i, j, k, id
+    real(DR) :: f
+
+    !!>
+        $c_p$: specific heat of constant pressure, per particle
+        $c_v$: specific heat of constant volume, per particle
+        $k_B$: Boltzmann constant
+        $\epsilon$: energy per particle
+        $f$: degree of freedom
+          \begin{align*}
+            c_p =& c_v + k_B    \\
+            \gamma =& c_p / c_v = 1 + k_B/c_v    \\
+            \epsilon =& \frac{f}{2} k_B \, T   \\
+            c_v =& \frac{d\epsilon}{dT} = \frac{f}{2} k_B  \\
+            \therefore \quad f =& \frac{2}{\gamma-1}
+          \end{align*}
+    !!<
+
+
+    ! Redandant calculation is automatically avoided.
+    call subsubf.update(t.nloop,  &
+                        mainf,  &
+                        subf)
+
+    val(:) = 0.0_DR
+
+    do k bulk
+      do j bulk
+        do i bulk
+          val(ID_MASS_INTGRL) += mainf.rho(i,j,k)
+          val(ID_FLOW_ENERGY) += subsubf.flow_energy(i,j,k)
+          val(ID_MAGN_ENERGY) += subsubf.magnetic_energy(i,j,k)
+          val(ID_THRM_ENERGY) += mainf.prs(i,j,k)  ! *f later.
+        end do
+      end do
+    end do
+
+    f = (DEGREE_OF_FREEDOM/2)*grid.s.dvol
+    val(ID_MASS_INTGRL) *= grid.s.dvol
+    val(ID_FLOW_ENERGY) *= grid.s.dvol
+    val(ID_MAGN_ENERGY) *= grid.s.dvol
+    val(ID_THRM_ENERGY) *= f         ! U=(f/2)p
+
+    do id = 1 , ID_NUM
+      call mpiut__allreduce_sum(psim.comm,val(id))
+    end do
+
+    if ( psim.io_clerk() ) then
+      call iSave(FILE_NUM.integrated_values,val)
+    end if
+
+    call mpiut__barrier(psim.comm)
+
+  contains
+
+    subroutine iSave(filenum,val)
+       integer(SI) <in> :: filenum
+       real(DR) <in> :: val(ID_NUM)
+
+       integer(SI) ::  i
+       character(len=17) <const> :: FMT_LEFT  = "(i10,x,1pe10.3,x,"
+       character(len=10) <const> :: FMT_RIGHT = "(e10.3,x))"
+       character(len=2) :: fmt_middle
+
+       write(fmt_middle,'(i02)') ID_NUM
+       write(filenum,FMT_LEFT//fmt_middle//FMT_RIGHT)  &
+                     t.nloop,  &
+                     t.time,  &
+                     (val(i),i=1,ID_NUM)
+    end subroutine iSave
+
+  end subroutine integrated_values
+
+
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+  subroutine check_over_flow(f,name,check)
+    real(DR), dimension(:,:,:) <in> :: f
+    character(len=*)           <in> :: name
+    integer(SI)                   <io> :: check
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+    real(DR) <const> :: ANOMALOUSLY_LARGE = 1.e20_DR
+
+    if ( maxval(abs(f)) > ANOMALOUSLY_LARGE )  then
+       call ut__message('.', "overflow:"//trim(name))
+       check += 1
+    end if
+
+  end subroutine check_over_flow
+
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+  subroutine check_positive_definite(f,name,check)
+    real(DR), dimension(:,:,:) <in> :: f
+    character(len=*)           <in> :: name
+    integer(SI)                   <io> :: check
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+    if ( minval(f) < 0.0_DR )  then
+       call ut__message('.', "negative anormaly:"//trim(name))
+       check += 1
+    end if
+
+  end subroutine check_positive_definite
+
+
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+  subroutine draw_2d_cross_sections(psim,t,mainf,subf)
+    type(psim_t) <in> :: psim
+    type(time_t)      <in> :: t
+    type(mainfld_t) <in> :: mainf
+    type(subfld_t) <in> :: subf
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+    type(viz2d_t), save :: viz2d
+    type(pos_index_t) :: rank_pos_index
+    logical  :: just_once=.true.
+    integer(SI) :: ctr=0 ! set 0 to exec in the 1st entry.
+    integer(SI) :: global_shift_i, global_shift_j, global_shift_k
+    integer(SI) :: i, j, kcut, ig, jg, kgcut  ! g stands for global
+    integer(SI) :: scomm
+
+    ===<just_once>===
+      call viz2d_initialize(viz2d)
+      call insitu2d__initialize(viz2d.com)
+    ===</just_once>===
+
+    viz2d.com.step = t.nloop
+    viz2d.com.t    = t.time
+
+    viz2d.pressure.f(:,:) = 0.0_SR  ! These zero
+    viz2d.velocity.x(:,:) = 0.0_SR  ! set is in-
+    viz2d.velocity.y(:,:) = 0.0_SR  ! dispensable
+    viz2d.magfield.x(:,:) = 0.0_SR  ! for later
+    viz2d.magfield.y(:,:) = 0.0_SR  ! summation.
+
+    rank_pos_index = psim.pos.index
+
+    global_shift_i = rank_pos_index.i*NXPP
+    global_shift_j = rank_pos_index.j*NYPP
+    global_shift_k = rank_pos_index.k*NZPP
+
+    kgcut = NZ_GLOBAL/2
+
+
+    if ( iHave_the_plane_at(kgcut) ) then
+      do j = 1 , NYPP
+        do i = 1 , NXPP
+          ig = global_shift_i + i
+          jg = global_shift_j + j
+        ! kgcut = global_shift_k + kcut
+          kcut = kgcut - global_shift_k
+          viz2d.pressure.f(ig,jg) = mainf.prs      (i,j,kcut)
+          viz2d.velocity.x(ig,jg) = subf.velocity.x(i,j,kcut)
+          viz2d.velocity.y(ig,jg) = subf.velocity.y(i,j,kcut)
+          viz2d.magfield.x(ig,jg) = subf.magfield.x(i,j,kcut)
+          viz2d.magfield.y(ig,jg) = subf.magfield.y(i,j,kcut)
+        end do
+      end do
+    end if
+
+    scomm = psim.comm
+    call mpiut__allreduce_sum(scomm,viz2d.pressure.f)
+    call mpiut__allreduce_sum(scomm,viz2d.velocity.x)
+    call mpiut__allreduce_sum(scomm,viz2d.velocity.y)
+    call mpiut__allreduce_sum(scomm,viz2d.magfield.x)
+    call mpiut__allreduce_sum(scomm,viz2d.magfield.y)
+
+    if ( psim.rank.me==0 ) then
+      call insitu2d__draw(viz2d.com,  &
+                          scalar01=viz2d.pressure,  &
+                          vector01=viz2d.velocity,  &
+                          vector02=viz2d.magfield)
+    end if
+    call mpiut__barrier(scomm)
+
+  contains
+
+    function iHave_the_plane_at(kgcut)
+      integer(SI) <in> :: kgcut
+      logical :: iHave_the_plane_at
+
+      integer(SI) :: global_k_stt, global_k_end
+      global_k_stt = global_shift_k + 1
+      global_k_end = global_shift_k + NZPP
+
+      iHave_the_plane_at = global_k_stt <= kgcut  &
+                                           .and.  &
+                            kgcut <= global_k_end
+    end function iHave_the_plane_at
+
+  end subroutine draw_2d_cross_sections
+
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+  subroutine health_check(mainf,state)
+    type(mainfld_t) <in> :: mainf
+    integer(SI)        <io> :: state
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+    !!>
+      Author: Akira Kageyama
+        2013.08.06: mod(nloop) --> mod(skip_counter).
+        2016.06.16: added skip_counter+1.
+        2017.07.04: use skip func in efpp.sh, by kage.
+    !!<
+
+    integer(SI) :: check
+
+    if ( state /= KARTE.runnable ) return ! already errornous.
+
+    !<< Overflow check >>!
+    check = 0
+    call check_over_flow(mainf.f.x,'mainf.f.x',check)
+    call check_over_flow(mainf.f.y,'mainf.f.y',check)
+    call check_over_flow(mainf.f.z,'mainf.f.z',check)
+    call check_over_flow(mainf.a.x,'mainf.a.x',check)
+    call check_over_flow(mainf.a.y,'mainf.a.y',check)
+    call check_over_flow(mainf.a.z,'mainf.a.z',check)
+    call check_over_flow(mainf.rho,'mainf.rho',check)
+    call check_over_flow(mainf.prs,'mainf.prs',check)
+
+    if ( check /= 0 ) then
+      state = KARTE.overflow
+      return
+    end if
+
+    !<< Sign check >>!
+    check = 0   ! reset
+    call check_positive_definite(mainf.rho,'mainf.rho',check)
+    call check_positive_definite(mainf.prs,'mainf.prs',check)
+
+    if (check/=0) then
+      state = KARTE.negative_anormaly
+      return
+    end if
+
+  end subroutine health_check
+
+
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+  subroutine init(psim)
+    type(psim_t) <in> :: psim
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+    !!>
+      Purpose: Initialization of this module.
+       Author: Akira Kageyama
+         Date: 2013.06.25: Revised. tag length 12 to arbitrary.
+               2013.08.06: Minor.
+               2014.11.04: Major revision. No magmoments.
+               2014.12.06: NIL -> -huge(1_DI) in initial Data.nloop.
+               2017.07.05: Removed Data and NIL.
+    !!<
+
+    if ( psim.io_clerk() ) then
+      open(FILE_NUM.integrated_values,  &
+           file=trim(iFilename("integrated_values")))
+    end if
+
+    call mpiut__barrier(psim.comm)
+
+  contains
+
+    function iFilename(tag)
+      char(len=*)  <in>      :: tag
+      char(len=CHAR.filelen) :: iFilename
+
+      ! e.g., filename = "output_small/jan20.000.totene"
+      iFilename = trim(namelist.dir_data.get_val())  &
+                  //CHAR.slash  &
+                  //trim(namelist.task.get_val())  &
+                  //CHAR.dot  &
+                  //ut__i2c3(namelist.seq.get_val())  &
+                  //CHAR.dot  &
+                  //trim(tag)
+    end function iFilename
+
+  end subroutine init
+
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+  subroutine share_karte_simul(psim,karte)
+    type(psim_t) <in> :: psim
+    integer(SI) <io> :: karte
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+    call mpiut__allreduce_max(psim.comm,karte)
+
+  end subroutine share_karte_simul
+
+
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+  subroutine viz2d_initialize(viz2d)
+    type(viz2d_t) <io> :: viz2d
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+    real(SR), allocatable :: global_xpos(:)
+    real(SR), allocatable :: global_ypos(:)
+    integer(SI) :: mx, my
+
+    viz2d.com.file_unit   = FILE_NUM.insitu2d
+    viz2d.com.simreg.nw.x = simulation_region.xmin
+    viz2d.com.simreg.nw.y = simulation_region.ymax
+    viz2d.com.simreg.ne.x = simulation_region.xmax
+    viz2d.com.simreg.ne.y = simulation_region.ymax
+    viz2d.com.simreg.se.x = simulation_region.xmax
+    viz2d.com.simreg.se.y = simulation_region.ymin
+    viz2d.com.simreg.sw.x = simulation_region.xmin
+    viz2d.com.simreg.sw.y = simulation_region.ymin
+    viz2d.com.magfactor_pixel_per_unit_length = 25.0
+    mx = NX_GLOBAL
+    my = NY_GLOBAL
+
+    allocate(global_xpos(mx),global_ypos(my))
+
+    call iGrid_global_pos
+    call iSet_pressure
+    call iSet_velocity
+    call iSet_magfield
+
+    deallocate(global_xpos,global_ypos)
+
+  contains
+
+    subroutine iGrid_global_pos
+      integer(SI) :: ig, jg
+      do ig = 1 , mx
+        global_xpos(ig) = SIMULATION_REGION.xmin + grid.s.d0*(ig-0.5_DR)
+      end do
+      do jg = 1 , my
+        global_ypos(jg) = SIMULATION_REGION.ymin + grid.s.d0*(jg-0.5_DR)
+      end do
+    end subroutine iGrid_global_pos
+
+    subroutine iSet_magfield
+      viz2d.magfield.nx = mx
+      viz2d.magfield.ny = my
+      viz2d.magfield.stride_for_arrow = 4
+      viz2d.magfield.arrow_normalization_unit = -999.999
+      allocate(viz2d.magfield.xpos(mx))
+      allocate(viz2d.magfield.ypos(my))
+      allocate(viz2d.magfield.x(mx,my))
+      allocate(viz2d.magfield.y(mx,my))
+      viz2d.magfield.tag = "magfield"
+      viz2d.magfield.xpos(:) = global_xpos(:)
+      viz2d.magfield.ypos(:) = global_ypos(:)
+    end subroutine iSet_magfield
+
+    subroutine iSet_velocity
+      viz2d.velocity.nx = mx
+      viz2d.velocity.ny = my
+      viz2d.velocity.stride_for_arrow = 4
+      viz2d.velocity.arrow_normalization_unit = -999.999
+      allocate(viz2d.velocity.xpos(mx))
+      allocate(viz2d.velocity.ypos(my))
+      allocate(viz2d.velocity.x(mx,my))
+      allocate(viz2d.velocity.y(mx,my))
+      viz2d.velocity.tag = "velocity"
+      viz2d.velocity.xpos(:) = global_xpos(:)
+      viz2d.velocity.ypos(:) = global_ypos(:)
+    end subroutine iSet_velocity
+
+
+    subroutine iSet_pressure
+      viz2d.pressure.nx = mx
+      viz2d.pressure.ny = my
+      viz2d.pressure.contour_upper = 0.0_SR
+      viz2d.pressure.contour_lower = 0.0_SR
+      viz2d.pressure.contour_levels = 20
+      allocate(viz2d.pressure.xpos(mx))
+      allocate(viz2d.pressure.ypos(my))
+      allocate(viz2d.pressure.f(mx,my))
+      viz2d.pressure.tag = "pressure"
+      viz2d.pressure.xpos(:) = global_xpos(:)
+      viz2d.pressure.ypos(:) = global_ypos(:)
+    end subroutine iSet_pressure
+
+  end subroutine viz2d_initialize
+
+
+!
+! private
+!=================
+! public
+!
+
+
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+  subroutine diagno__biopsy(psim,t,mainf,subf,subsubf,state)
+    type(psim_t) <in> :: psim
+    type(time_t)      <io> :: t
+    type(mainfld_t) <in> :: mainf
+    type(subfld_t) <in> :: subf
+    type(subsubfld_t) <io> :: subsubf
+    integer(SI)          <io> :: state  ! = karte
+!__________  _________  ________ _______ ______ _____ ____ ___ __ _
+!
+    logical  :: just_once = .true.
+    integer(SI) :: ctr1=0 ! set 0 to exec in the 1st entry.
+    integer(SI) :: ctr2=0 ! set 0 to exec in the 1st entry.
+    integer(SI) :: ctr3=0 ! set 0 to exec in the 1st entry.
+    integer(SI) :: ctr4=0 ! set 0 to exec in the 1st entry.
+    integer(SI) :: ctr5=1 ! set 0 to exec in the 1st entry.
+
+                                                    !{diagno}{{STT}}
+    =<just_once>=
+      call init(psim)                               !{diagno}{  init}
+    =</just_once>=
+
+    =<skip ctr1:20>=
+      call health_check(mainf,state)
+      call share_karte_simul(psim,state)            !{diagno}{heltck}
+      if ( state /= KARTE.runnable ) return
+    =</skip ctr1>=
+
+    =<skip ctr2:50>=
+      call integrated_values(psim,t,mainf,subf,subsubf)
+                                                    !{diagno}{intval}
+    =</skip ctr2>=
+
+    =<skip ctr3:100>=
+      call draw_2d_cross_sections(psim,t,mainf,subf)
+                                                    !{diagno}{draw2d}
+    =</skip ctr3>=
+
+    =<skip ctr5:1000>=
+      call avsdata__save(psim,t,mainf,subf)         !{diagno}{avsdat}
+    =</skip ctr5>=
+                                                    !{diagno}{{END}}
+  end subroutine diagno__biopsy
+
+end module diagno_m
