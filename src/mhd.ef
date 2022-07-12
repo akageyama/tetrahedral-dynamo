@@ -2,6 +2,7 @@ module mhd_m
   use constants_m
   use grid_m
   use vector_field_m
+  use insitu2d_m
   use ut_m
   implicit none
   private

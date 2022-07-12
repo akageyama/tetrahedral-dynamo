@@ -15,7 +15,7 @@
 !!<
 
 module insitu2d_m
-  use const_m
+!  use constants_m
   use kutimer_m
   use turtle_m
   implicit none
@@ -156,7 +156,7 @@ contains
 
 
     function i2c7( i )
-      integer(SI) <in> :: i
+      integer <in> :: i
       char(len=7) :: i2c7
       !!>
           Convert an integer into 7 characters.
