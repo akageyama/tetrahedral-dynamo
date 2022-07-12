@@ -1,17 +1,4 @@
 !!>
-   turtle.f03
- 
-            Revised by Akira Kageyama
- 
-  2016.09.28: This is turtle.f03.
-  2016.09.28: Copied from yyz_relax project. This was turtle.f90
-  2016.09.28: Removed "use ut", and changed ut__message to print *.
-  2016.09.28: Removed "use namelist", and changed ut__message to print *.
-  2016.09.28: Removed "use constants".
-  2016.09.29: Using Fortran2003 features, such as associate.
-  2016.09.29: Combined various variables into scalar & vector types.
-  2016.10.01: Added a new type "window_t".
-  2016.10.01: Revised rectangle_structure.
  
  -----------------------------------------------------------------------------
   turtle.f90
@@ -23,21 +10,36 @@
     you use gnuplot, for example, to get the figure output from
     this text data file. See 'turtle.gp' for an example script
     for gnuplot.
-
-  By Akira Kageyama (kage@port.kobe-u.ac.jp)
- 
-  2015.09.14: Added ALMOST_ZERO and zero check of vector norm max.
-  2015.11.18: Incorporating to YYZ code, for in-situ vis. Added verbose mode.
-  2015.11.27: Added turtle__rectangle_broken.
-
  -----------------------------------------------------------------------------
-  2005.11.24: Added select_file_for_lines and _points.
-  2005.11.23: Finished. Beautiful!
-  2005.11.24: Minor change in vector_polar.
-  2005.11.22: Development start. Most part of contour comes from my old glib.
+  turtle.f90 by Akira Kageyama, kage@jamstec.go.jp
+                Earth Simulator Center, JAMSTEC
 
-  By Akira Kageyama, kage@jamstec.go.jp
-                     Earth Simulator Center, JAMSTEC
+    2005.11.22: Start development. Most part of contour comes from my old glib.
+    2005.11.24: Minor change in vector_polar.
+    2005.11.23: Finished. Beautiful!
+    2005.11.24: Added select_file_for_lines and _points.
+
+  Revise by Akira Kageyama (kage@port.kobe-u.ac.jp)
+
+    2015.09.14: Added ALMOST_ZERO and zero check of vector norm max.
+    2015.11.18: Incorporating to YYZ code, for in-situ vis. Added verbose mode.
+    2015.11.27: Added turtle__rectangle_broken.
+
+  turtle.f03 by Akira Kageyama
+ 
+    2016.09.28: This is turtle.f03.
+    2016.09.28: Copied from yyz_relax project. This was turtle.f90
+    2016.09.28: Removed "use ut", and changed ut__message to print *.
+    2016.09.28: Removed "use namelist", and changed ut__message to print *.
+    2016.09.28: Removed "use constants".
+    2016.09.29: Use Fortran2003 features, such as associate.
+    2016.09.29: Combined various variables into scalar & vector types.
+    2016.10.01: Added a new type "window_t".
+    2016.10.01: Revised rectangle_structure.
+
+  turtle.ef by Akira Kageyama
+    2022.07.11: Minor edit to the eFortran style. This was turtle.e03
+    2022.0
 !!<
 
 module turtle_m
