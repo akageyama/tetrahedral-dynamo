@@ -1082,7 +1082,7 @@ contains
   subroutine line( xp, yp )
     real <in> :: xp, yp
 
-    if ( Verbose .and. (.not.Initialization_done) ) then
+    if ( Verbose .and. (.not. Initialization_done) ) then
        print *, "<__FUNC__> You forgot initialization. Do nothing."
        return
     end if
@@ -1101,7 +1101,7 @@ contains
   subroutine move( xp, yp )
     real <in> :: xp, yp
 
-    if ( Verbose .and. (.not.Initialization_done) ) then
+    if ( Verbose .and. (.not. Initialization_done) ) then
        print *, "<__FUNC__> You forgot initialization. Do nothing."
        return
     end if
@@ -1180,7 +1180,7 @@ contains
 
 !   real :: ox, oy
 
-!   if (Verbose .and. (.not.Initialization_done)) then
+!   if (Verbose .and. (.not. Initialization_done)) then
 !      print *, "<turtle/point> You forgot initialization. Do nothing."
 !      return
 !   end if
