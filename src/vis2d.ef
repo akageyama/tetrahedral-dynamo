@@ -1,5 +1,6 @@
 module vis2d_m
   use constants_m
+  use turtle_m
   use ut_m
   implicit none
   private
@@ -15,7 +16,7 @@ module vis2d_m
 contains  
 
 
-  subroutine viz2d__initialize(viz2d)
+  subroutine viz2d__initialize( viz2d )
     type(viz2d_t) <io> :: viz2d
 
     real(SR), allocatable :: global_xpos(:)

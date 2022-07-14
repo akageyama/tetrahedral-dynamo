@@ -1,57 +1,80 @@
-module constants_m
-  use iso_fortran_env
+
+==============================<!>==============================
+
+  cg-mhd: Cubic Grid MHD Solver
+                                           Akira Kageyama
+                                   kage@port.kobe-u.ac.jp
+                                               Kobe Univ.
+
+  Note:
+   * Written in "E-language". Apply "efpp.sh" for Fortran 2003.
+   * We take the ``Keep it simple'' approach:
+       + The grid spacings in three (x,y, and z) directions
+         are all the same, i.e., dx=dy=dz.
+       + Each MPI process has exactly the same volume of space as
+         well as the grid spans. Therefore, each process has the
+         same size of arrays for variables.
+       + We do not care about the memory size. We take the
+         so-called "rich-man's approach".
+       + We also disregard the interprocess communication
+         redundancy. Simplicity surpasses communication stinginess.
+
+  const.e03
+    Constants with the Global Scope.
+
+  History
+    2013.04.04: Developed by Akira Kageyama
+    2013.04.04: This is for cg-mhd.
+    2013.04.24: Still coding.
+    2013.05.16: Still coding...
+    2013.06.05: Finally, finished coding.
+    2013.06.05: Start debugging.
+    2013.06.12: Making use of typed parameters.
+    2013.08.04: Minor. +mean_mass. Comments and format.
+    2014.12.05: +comment on inter process communication.
+    2017.06.28: Moved connstans from const_input.dat.
+    2017.07.17: Added const__print.
+    2017.08.17: Combined params_input.dat.
+
+==============================</!>==============================
+
+
+module const_m
   implicit none
   private
-
- !!>
-      z=0の平面上では
-       .
-             (0,N,0)               
-       .         *
-               .   * 
-       .     .        
-           .            *
-       . .                *
-       x  .  .  .  .  .  .  *
-    (0,0,0)               (N,0,0)
-
-    z=0面で、(N,0,0)の1点を頂点とする三角形はzが上がると構成要素の点が一つずつ増える
-    z=1面では、(N-1,0,1), (N,0,1)  の2点
-    z=2面では、(N-2,0,2), (N-1,1,2), (N,2,2) の3点
-    z=3面では、(N-3,0,3), (N-2,1,3), (N-1,2,3), (N,3,3) の4点
-    ...
-    z=N面では、(0,0,N), (1,1,N), ..., (N,N,N)
-
- !!<
-
   public :: const
-  public :: SI, DI, SR, DR, PI, TWOPI
+  public :: SI, DI, SR, DR, SC, DC, PI, TWOPI, Z0, ZI
   public :: PHYS, GASS, SIMULATION_REGION, KARTE
-  public :: NPROCS_X, NPROCS_Y, NPROCS_Z ! , CAMERAS
-  public :: NPROCS_TOTAL
+  public :: NPROCS_X, NPROCS_Y, NPROCS_Z, CAMERAS
+  public :: NPROCS_SIMULA, NPROCS_DS_SIM
+  public :: NPROCS_DS_VIZ, NPROCS_VISUAL
   public :: NVIZFLD, VIZFLD_STR, VIZFLD_STR_LEN
   public :: NX_GLOBAL, NY_GLOBAL, NZ_GLOBAL
   public :: NXPP, NYPP, NZPP, NXPP1, NYPP1, NZPP1
-  public :: FILE_NUM, NIL
+  public :: FILE_NUM, CHAR, NIL
 
 
   type, public :: const_t
   contains
-    procedure, nopass :: print => constants__print
+    procedure, nopass :: print => const__print
   end type const_t
 
   type(const_t) :: const
 
+
   !<< Fortran constants >>!
-  integer <const> :: SI = int32
-  integer <const> :: DI = int64
-  integer <const> :: SR = real32
-  integer <const> :: DR = real64
-  integer <const> :: NIL = -huge(1)
+  integer <const> :: SI = selected_int_kind(6)
+  integer <const> :: DI = selected_int_kind(15)
+  integer <const> :: SR = selected_real_kind(6)
+  integer <const> :: DR = selected_real_kind(15)
+  integer <const> :: SC = kind((1.0_SR,1.0_SR))
+  integer <const> :: DC = kind((1.0_DR,1.0_DR))
 
   !<< Mathematical constants >>!
-  real(DR) <const> :: PI = atan(1.0_DR)*4
+  real(DR) <const> ::    PI = 3.1415926535897932_DR
   real(DR) <const> :: TWOPI = PI*2
+  complex(DC) <const> ::    Z0 = (0.0_DR,0.0_DR)
+  complex(DC) <const> ::    ZI = (0.0_DR,1.0_DR)
 
   !<< Physical constants >>!
   real(DR) <const> :: MAGNETIC_PERMEABILITY_ = 4*PI*1.0e-7_DR    ! m kg/s^2/A^2
@@ -69,120 +92,54 @@ module constants_m
   real(DR) <const> :: ETA_                 = 10.0e-3_DR ! Ohm m
 
   !<< Simulation size constants >>!
-
-  ! real(DR) <const> :: CUBE_SIDE_LENGTH_ = 10.0_DR ! meters
-  ! real(DR) <const> :: SIMULATION_REGION_XMIN_  &
-  !                  = -3*CUBE_SIDE_LENGTH_ / 2
-  ! real(DR) <const> :: SIMULATION_REGION_XMAX_  &
-  !                  =  3*CUBE_SIDE_LENGTH_ / 2
-  ! real(DR) <const> :: SIMULATION_REGION_YMIN_  &
-  !                  = -CUBE_SIDE_LENGTH_ / 2
-  ! real(DR) <const> :: SIMULATION_REGION_YMAX_  &
-  !                  =  CUBE_SIDE_LENGTH_ / 2
-  ! real(DR) <const> :: SIMULATION_REGION_ZMIN_  &
-  !                  = -CUBE_SIDE_LENGTH_ / 2
-  ! real(DR) <const> :: SIMULATION_REGION_ZMAX_  &
-  !                  =  CUBE_SIDE_LENGTH_ / 2
-
-
-  !<< MPI process constants >>!
-  integer <const> :: NPROCS_X = 1  ! Raw number; mkjob.sh will grep this.
-  integer <const> :: NPROCS_Y = 2  ! Raw number; mkjob.sh will grep this.
-  integer <const> :: NPROCS_Z = 2  ! Raw number; mkjob.sh will grep this.
-  integer <const> :: NPROCS_TOTAL = NPROCS_X*NPROCS_Y*NPROCS_Z
+  real(DR) <const> :: CUBE_SIDE_LENGTH_ = 10.0_DR ! meters
+  real(DR) <const> :: SIMULATION_REGION_XMIN_  &
+                   = -3*CUBE_SIDE_LENGTH_ / 2
+  real(DR) <const> :: SIMULATION_REGION_XMAX_  &
+                   =  3*CUBE_SIDE_LENGTH_ / 2
+  real(DR) <const> :: SIMULATION_REGION_YMIN_  &
+                   = -CUBE_SIDE_LENGTH_ / 2
+  real(DR) <const> :: SIMULATION_REGION_YMAX_  &
+                   =  CUBE_SIDE_LENGTH_ / 2
+  real(DR) <const> :: SIMULATION_REGION_ZMIN_  &
+                   = -CUBE_SIDE_LENGTH_ / 2
+  real(DR) <const> :: SIMULATION_REGION_ZMAX_  &
+                   =  CUBE_SIDE_LENGTH_ / 2
 
   !<< Grid size constants >>!
-  integer <const> :: NX_GLOBAL = 60   ! Must be even
-  integer <const> :: NY_GLOBAL = 60   ! Must equal to NX_GLOBAL
-  integer <const> :: NZ_GLOBAL = 60   ! Must equal to NX_GLOBAL
+  ! this is a test case. 264 = 68*4 - 2
+  integer(SI) <const> :: NX_GLOBAL = 60   ! Must be even
+  integer(SI) <const> :: NY_GLOBAL = 20   ! Must be even
+  integer(SI) <const> :: NZ_GLOBAL = 20   ! Must be even
 
-  integer <const> :: NXPP = NX_GLOBAL/NPROCS_X ! grids per process
-  integer <const> :: NYPP = NY_GLOBAL/NPROCS_Y
-  integer <const> :: NZPP = NZ_GLOBAL/NPROCS_Z
-  integer <const> :: NXPP1 = NXPP + 1
-  integer <const> :: NYPP1 = NYPP + 1
-  integer <const> :: NZPP1 = NZPP + 1
+  !> integer(SI) <const> :: NX_GLOBAL = 46   ! Must be even
+  !> integer(SI) <const> :: NY_GLOBAL = 46   ! Must be even
+  !> integer(SI) <const> :: NZ_GLOBAL = 46   ! Must be even
 
+  !> integer(SI) <const> :: NX_GLOBAL = 264   ! Must be even
+  !> integer(SI) <const> :: NY_GLOBAL = 264   ! Must be even
+  !> integer(SI) <const> :: NZ_GLOBAL = 264   ! Must be even
 
-  !<< Simulation constants >>!
-  real(DR) <const> :: EDGE_LENGTH_OF_TETRA = 1.0_DR ! meter.
-  real(DR) <const> :: EDGE_LENGTH_OF_INNER_CUBE = EDGE_LENGTH_OF_TETRA / sqrt(2.0_DR)
+  !> integer(SI) <const> :: NX_GLOBAL = 96   ! Must be even
+  !> integer(SI) <const> :: NY_GLOBAL = 96   ! Must be even
+  !> integer(SI) <const> :: NZ_GLOBAL = 96   ! Must be even
 
-  !!>     
-                         
-         B----B----B----B----B----B--  ...  --B----B----B
-         |    |    |    |    |    |           |    |    |
-         B----B----B----B----B----B--  ...  --B----B----B
-         |    |    |    |    |    |           |    |    |
-         B----B----I----I----I----I--  ...  --I----B----B
-         |    |    | // | // | // |        // |    |    |
-         B----B----I----I----I----I--  ...  --I----B----B
-         |    |    | // | // | // |        // |    |    |
-         B----B----I----I----I----I--  ...  --I----B----B
-         |    |    | // | // | // |        // |    |    |
-         .    .    .    .    .    .           .    .    .
-         .    .    .  MHD equations are solved in  .    .
-         .    .    .  the cells with "//" mark.    .    . 
-         .    .    .    .    .    .           .    .    .
-         |    |    | // | // | // |        // |    |    |
-         B----B----I----I----I----I--  ...  --I----B----B
-         |    |    | // | // | // |        // |    |    |
-         B----B----I----I----I----I--  ...  --I----B----B
-         |    |    |    |    |    |           |    |    |
-         B----B----B----B----B----B--  ...  --B----B----B
-         |    |    |    |    |    |           |    |    |
-         B----B----B----B----B----B--  ...  --B----B----B
-
-  When NX_BUFFER = 3, and NX_INNER_CUBE = M,
-  
-    B: Buffer grid   
-         \              I: Inner cube grid 
-          1   2   3    /                              4   5   6
-          B---B---B---I---I---I-   ...   -I---I---I---B---B---B
-                      1   2   3          M-2 M-1  M
-          |   |   |   |   |   |           |   |   |   |   |   |
-          1   2   3   4   5   6           |   |   |  N-2 N-1  N
-          G---G---G---G---G---G-   ...   -G---G---G---G---G---G
-          .\          .                           .           .
-          . G: Global cube grid                   .           .
-          .           .                           .           . 
-          .           |<------------------------->|           .
-          .             EDGE_LENGTH_OF_INNER_CUBE             .
-          .                                                   .
-          |<------------------------------------------------->|
-                        EDGE_LENGTH_OF_GLOBAL_CUBE
-
-  Because NX_GLOBAL = NX_INNER_CUBE + 2*NX_BUFFER,
-          DX = EDGE_LENGTH_OF_INNER_CUBE / ( NX_INNER_CUBE-1 )
-             = EDGE_LENGTH_OF_INNER_CUBE / ( NX_GLOBAL - 2*NX_BUFFER - 1)
-
-  !!<
-  real(DR) <const> :: EDGE_LENGTH_OF_GLOBAL_CUBE = EDGE_LENGTH_OF_INNER_CUBE * 1.5_DR
-
-  ! real(DR) <const> :: DX = EDGE_LENGTH_OF_CORE_CUBE / (NCORE-1)
-  ! real(DR) <const> :: DY = DX
-  ! real(DR) <const> :: DZ = DX
-  ! integer <const> :: NCUBE = 1.5*NCORE   ! The factor must be > 1
-  ! real(DR) <const> :: EL_CUBE = DX * (NCUBE-1)
-
-
-    !!>
+    =====<!>=====
       NX_GLOBAL must be:
         (1) even number
         (2) multiple of NPROCS_X.
       in other words,
         mod(NX_GLOBAL,2) = mod(NX_GLOBAL,NPROCS_X) = 0
       So as Y and Z. We will confirm these in "grid__init".
-    !!<
+    =====</!>=====
 
-!!>
   !<< 4D street view constants >>!
-  integer <const> :: NCAMERA_X_ = 2  ! Raw number; mkjob.sh grep this.
-  integer <const> :: NCAMERA_Y_ = 2  ! Raw number; mkjob.sh grep this.
-  integer <const> :: NCAMERA_Z_ = 2  ! Raw number; mkjob.sh grep this.
-  integer <const> :: NCAMERA_XYZ_ = NCAMERA_X_*NCAMERA_Y_*NCAMERA_Z_
-  integer <const> :: NVIZFLD = 3  ! Raw number; mkjob.sh grep this.
-  integer <const> :: VIZFLD_STR_LEN = 20
+  integer(SI) <const> :: NCAMERA_X_ = 2  ! Raw number; mkjob.sh grep this.
+  integer(SI) <const> :: NCAMERA_Y_ = 2  ! Raw number; mkjob.sh grep this.
+  integer(SI) <const> :: NCAMERA_Z_ = 2  ! Raw number; mkjob.sh grep this.
+  integer(SI) <const> :: NCAMERA_XYZ_ = NCAMERA_X_*NCAMERA_Y_*NCAMERA_Z_
+  integer(SI) <const> :: NVIZFLD = 3  ! Raw number; mkjob.sh grep this.
+  integer(SI) <const> :: VIZFLD_STR_LEN = 20
   char(len=VIZFLD_STR_LEN) <const> :: VIZFLD_STR(NVIZFLD)   &
                             = [  &! "12345678901234567890"
                                     "mass density        "   &
@@ -192,21 +149,35 @@ module constants_m
                                   !,"magnetic energy     "   &
                                   !,"dynamo term         "   &
                               ]
-!!<
+
+  !<< MPI process constants >>!
+  integer(SI) <const> :: NPROCS_X = 2  ! Raw number; mkjob.sh grep this.
+  integer(SI) <const> :: NPROCS_Y = 2  ! Raw number; mkjob.sh grep this.
+  integer(SI) <const> :: NPROCS_Z = 2  ! Raw number; mkjob.sh grep this.
+  integer(SI) <const> :: NPROCS_SIMULA = NPROCS_X*NPROCS_Y*NPROCS_Z
+  integer(SI) <const> :: NPROCS_DS_SIM = NVIZFLD
+  integer(SI) <const> :: NPROCS_DS_VIZ = NVIZFLD
+  integer(SI) <const> :: NPROCS_VISUAL = NCAMERA_XYZ_
 
 
+  integer(SI) <const> :: NXPP = NX_GLOBAL/NPROCS_X ! grids per process
+  integer(SI) <const> :: NYPP = NY_GLOBAL/NPROCS_Y
+  integer(SI) <const> :: NZPP = NZ_GLOBAL/NPROCS_Z
+  integer(SI) <const> :: NXPP1 = NXPP + 1
+  integer(SI) <const> :: NYPP1 = NYPP + 1
+  integer(SI) <const> :: NZPP1 = NZPP + 1
 
-  ! !<< Visualization camera constants >>!
-  ! type, public :: cameras_t
-  !   integer(SI) :: nx, ny, nz
-  !   integer(SI) :: nxyz
-  ! end type
+  !<< Visualization camera constants >>!
+  type, public :: cameras_t
+    integer(SI) :: nx, ny, nz
+    integer(SI) :: nxyz
+  end type
 
-  ! type(cameras_t) <const> ::  &
-  !   CAMERAS = cameras_t(NCAMERA_X_,  &
-  !                       NCAMERA_Y_,  &
-  !                       NCAMERA_Z_,  &
-  !                       NCAMERA_XYZ_)
+  type(cameras_t) <const> ::  &
+    CAMERAS = cameras_t(NCAMERA_X_,  &
+                        NCAMERA_Y_,  &
+                        NCAMERA_Z_,  &
+                        NCAMERA_XYZ_)
 
   !<< Physical constants >>!
   type, public :: phys_t
@@ -218,11 +189,11 @@ module constants_m
   end type phys_t
 
   type (phys_t) <const> ::  &
-     PHYS = phys_t( PROTON_MASS_,  &
-                    ELECTRON_MASS_,  &
-                    PLASMA_MEAN_MASS_,  &
-                    BOLTZMANN_CONSTANT_,  &
-                    MAGNETIC_PERMEABILITY_ )
+     PHYS = phys_t(PROTON_MASS_,  &
+                   ELECTRON_MASS_,  &
+                   PLASMA_MEAN_MASS_,  &
+                   BOLTZMANN_CONSTANT_,  &
+                   MAGNETIC_PERMEABILITY_)
 
   !<< Gass related constants >>!
   type, public :: gass_t
@@ -236,13 +207,15 @@ module constants_m
 
 
   !<< Simulation parameters >>!
+
   type (gass_t) <const> ::  &
-     GASS = gass_t( SPECIFIC_HEATS_GAMMA_,  &
-                    INITIAL_DENSITY_,  &
-                    INITIAL_TEMPERATURE_,  &
-                    VISCOSITY_,  &
-                    KAPPA_,  &
-                    ETA_ )
+     GASS = gass_t(SPECIFIC_HEATS_GAMMA_,  &
+                   INITIAL_DENSITY_,  &
+                   INITIAL_TEMPERATURE_,  &
+                   VISCOSITY_,  &
+                   KAPPA_,  &
+                   ETA_  &
+                   )
 
   !<< Simulation region >>!
   type, public :: simulation_region_t
@@ -253,12 +226,12 @@ module constants_m
 
   type (simulation_region_t) <const> ::  &
      SIMULATION_REGION =  &
-        simulation_region_t ( SIMULATION_REGION_XMIN_, &
-                              SIMULATION_REGION_XMAX_, &
-                              SIMULATION_REGION_YMIN_, &
-                              SIMULATION_REGION_YMAX_, &
-                              SIMULATION_REGION_ZMIN_, &
-                              SIMULATION_REGION_ZMAX_ )
+        simulation_region_t (SIMULATION_REGION_XMIN_, &
+                             SIMULATION_REGION_XMAX_, &
+                             SIMULATION_REGION_YMIN_, &
+                             SIMULATION_REGION_YMAX_, &
+                             SIMULATION_REGION_ZMIN_, &
+                             SIMULATION_REGION_ZMAX_)
 
   !<< Job karte >>!
   type, public :: karte_t
@@ -278,20 +251,20 @@ module constants_m
 
   !<< I/O >>!
   type, public :: file_num_t
-    integer :: namelist
-    integer :: standard_out
-    integer :: quick_save
-    integer :: old_restart
-    integer :: new_restart
-    integer :: insitu2d
-    integer :: slice_2d_xy
-    integer :: slice_2d_yz
-    integer :: slice_2d_zx
-    integer :: slice_2d_xy2
-    integer :: slice_2d_xy3
-    integer :: integrated_values
-    integer :: viz_to_disk
-    integer :: avs_data
+    integer(SI) :: namelist
+    integer(SI) :: standard_out
+    integer(SI) :: quick_save
+    integer(SI) :: old_restart
+    integer(SI) :: new_restart
+    integer(SI) :: insitu2d
+    integer(SI) :: slice_2d_xy
+    integer(SI) :: slice_2d_yz
+    integer(SI) :: slice_2d_zx
+    integer(SI) :: slice_2d_xy2
+    integer(SI) :: slice_2d_xy3
+    integer(SI) :: integrated_values
+    integer(SI) :: viz_to_disk
+    integer(SI) :: avs_data
   end type file_num_t
 
   type (file_num_t) <const> :: &
@@ -314,12 +287,32 @@ module constants_m
                    )
   !<< I/O file name length >>!
 
+  type, public :: character_t
+    integer(SI)   :: taglen
+    integer(SI)   :: filelen
+    character  :: slash
+    character  :: ubar
+    character  :: dot
+  end type character_t
 
-  !!>
+  type (character_t) <const>   &
+     :: CHAR =                    &
+        character_t (             &
+                      100,        & ! taglen
+                      150,        & ! filelen
+                      '/',        & ! slash
+                      '_',        & ! ubar
+                      '.'         & ! dot
+                    )
+
+  !<< NULL >>!
+  integer(SI) <const> :: NIL = huge(1)
+
+  ====<!>====
     When your MPI doesn not support MPI_IN_PLACE, comment out
     the following line to define it as NIL. This flag will be
     used in mpiut__allreduce_sum etc.
-  !!<
+  ====</!>====
   !  integer(SI) <const> :: MPI_IN_PLACE = NIL
 
 
@@ -365,7 +358,7 @@ contains
 !=================
 !  public
 
-  subroutine constants__print
+  subroutine const__print
     call print_SI('const SI', SI)
     call print_SI('const DI', DI)
     call print_SI('const SR', SR)
@@ -450,6 +443,6 @@ contains
     call print_SI('CAMERAS.nxyz',  &
                    CAMERAS.nxyz)
 
-  end subroutine constants__print
+  end subroutine const__print
 
-end module constants_m
+end module const_m
